@@ -41,7 +41,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="BaseLogger.cs" />
+    <Compile Include="BaseLogger.cs">
+      <ExcludeFromStyleCop>False</ExcludeFromStyleCop>
+    </Compile>
     <Compile Include="CompoundLogger.cs" />
     <Compile Include="ConsoleLoggerOutputStreams.cs" />
     <Compile Include="CumulativeEmailLogger.cs" />

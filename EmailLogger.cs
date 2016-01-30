@@ -1,89 +1,35 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Net.Mail;
-using System.ComponentModel;
 
 namespace rgLogger {
     /// <summary>
     /// Sends an email for each log message written.
     /// </summary>
-    public class EmailLogger : BaseLogger {
+    public class EmailLogger : BaseLogger, IDisposable {
         /// <summary>
-        /// SMTP server IP/hostname.
+        /// The SmtpClient class to use to send emails.
         /// </summary>
-        public string SmtpServer { get; set; }
-
-        /// <summary>
-        /// SMTP server port. (Default=25)
-        /// </summary>
-        public int SmtpPort { get; set; } = 25;
-
-        /// <summary>
-        /// Username to login to the SMTP server.
-        /// </summary>
-        public string SmtpUser { get; set; }
-
-        /// <summary>
-        /// Password to login to the SMTP server.
-        /// </summary>
-        public string SmtpPassword { get; set; }
-
-        /// <summary>
-        /// Send email asynchronously.  (Default=true)
-        /// </summary>
-        public bool Asynchronous { get; set; } = true;
-        
-        /// <summary>
-        /// Proxy server IP/hostname.
-        /// </summary>
-        public string ProxyServer { get; set; }
-
-        /// <summary>
-        /// Proxy server port.
-        /// </summary>
-        public string ProxyPort { get; set; }
-        
-        /// <summary>
-        /// Address to send the emails from.
-        /// </summary>
-        public MailAddress Sender { get; set; }
-
-        /// <summary>
-        /// Collection of email addresses to send the emails to.
-        /// </summary>
-        public MailAddressCollection Recipient { get; set; }
-
-        /// <summary>
-        /// Reply-to address for the emails.
-        /// </summary>
-        public MailAddress ReplyTo { get; set; }
-
-        /// <summary>
-        /// Subject line for the emails.
-        /// (Default="Log message from " + ProcessName)
-        /// </summary>
-        public string Subject { get; set; } = "Log message from " + System.Diagnostics.Process.GetCurrentProcess().ProcessName;
-
-        /// <summary>
-        /// Shows if a message is currently being sent.
-        /// </summary>
-        public bool SendingMessage { get; private set; }
-
         private SmtpClient mailClient;
+
+        /// <summary>
+        /// List used to store the queue of email messages to send.
+        /// </summary>
         private List<MailMessage> messageQueue = new List<MailMessage>();
 
         /// <summary>
-        /// Create new email logger.
+        /// Initializes a new instance of the EmailLogger class.
         /// </summary>
         /// <param name="server">SMTP server's IP/hostname.</param>
         public EmailLogger(string server) {
             SmtpServer = server;
             Connect();
         }
-        
+
         /// <summary>
-        /// Create new email logger.
+        /// Initializes a new instance of the EmailLogger class.
         /// </summary>
         /// <param name="server">SMTP server's IP/hostname.</param>
         /// <param name="port">SMTP server's port.</param>
@@ -94,7 +40,7 @@ namespace rgLogger {
         }
 
         /// <summary>
-        /// Create a new email logger.
+        /// Initializes a new instance of the EmailLogger class.
         /// </summary>
         /// <param name="server">SMTP server's IP/hostname</param>
         /// <param name="messageLevel">Level of logging to allow through.</param>
@@ -103,7 +49,7 @@ namespace rgLogger {
         }
 
         /// <summary>
-        /// Create a new email logger.
+        /// Initializes a new instance of the EmailLogger class.
         /// </summary>
         /// <param name="server">SMTP server's IP/hostname.</param>
         /// <param name="port">SMTP server's port.</param>
@@ -112,9 +58,111 @@ namespace rgLogger {
             Level = messageLevel;
         }
 
-        private void Connect() {
-            mailClient = new SmtpClient(SmtpServer, SmtpPort);
-            mailClient.SendCompleted += new SendCompletedEventHandler(SendCompleted);
+        /// <summary>
+        /// Gets or sets the SMTP server IP address or hostname.
+        /// </summary>
+        public string SmtpServer { get; set; }
+
+        /// <summary>
+        /// Gets or sets the port used to connect to the SMTP server.
+        /// </summary>
+        public int SmtpPort { get; set; } = 25;
+
+        /// <summary>
+        /// Gets or sets the username to use when logging into the SMTP server.
+        /// </summary>
+        public string SmtpUser { get; set; }
+
+        /// <summary>
+        /// Gets or sets the password used to login to the SMTP server.
+        /// </summary>
+        public string SmtpPassword { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the email should be sent asynchronously. (Default = true)
+        /// </summary>
+        public bool Asynchronous { get; set; } = true;
+
+        /// <summary>
+        /// Gets or sets the proxy server IP address or hostname.
+        /// </summary>
+        public string ProxyServer { get; set; }
+
+        /// <summary>
+        /// Gets or sets the port used to connect to the proxy server.
+        /// </summary>
+        public string ProxyPort { get; set; }
+
+        /// <summary>
+        /// Gets or sets the email address to send emails from.
+        /// </summary>
+        public MailAddress Sender { get; set; }
+
+        /// <summary>
+        /// Gets or sets a collection of email addresses to be the recipients of the email.
+        /// </summary>
+        public MailAddressCollection Recipient { get; set; }
+
+        /// <summary>
+        /// Gets or sets the email address to set as the reply to address.
+        /// </summary>
+        public MailAddress ReplyTo { get; set; }
+
+        /// <summary>
+        /// Gets or sets the subject line for the emails. (Default = "Log message from ProcessName")
+        /// </summary>
+        public string Subject { get; set; } = "Log message from " + System.Diagnostics.Process.GetCurrentProcess().ProcessName;
+
+        /// <summary>
+        /// Gets a value indicating whether a message is currently being sent.
+        /// </summary>
+        public bool SendingMessage { get; private set; }
+
+        /// <summary>
+        /// Adds another recipient to the log messages.
+        /// </summary>
+        /// <param name="newRecipient">A MailAddress object for the new recipient.</param>
+        public void AddRecipient(MailAddress newRecipient) {
+            if (Recipient == null) {
+                Recipient = new MailAddressCollection();
+            }
+
+            Recipient.Add(newRecipient);
+        }
+
+        /// <summary>
+        /// Adds another recipient to the log messages.
+        /// </summary>
+        /// <param name="newRecipient">Email address of the recipient.</param>
+        public void AddRecipient(string newRecipient) {
+            Recipient.Add(new MailAddress(newRecipient));
+        }
+
+        /// <summary>
+        /// Adds multiple recipients to the log messages.
+        /// </summary>
+        /// <param name="newRecipients">A collection of MailAddress objects for the new recipients.</param>
+        public void AddRecipient(IEnumerable<MailAddress> newRecipients) {
+            foreach (var m in newRecipients) {
+                AddRecipient(m);
+            }
+        }
+
+        /// <summary>
+        /// Adds multiple recipients to the log messages.
+        /// </summary>
+        /// <param name="newRecipients">A collection of email addresses for the new recipients.</param>
+        public void AddRecipient(IEnumerable<string> newRecipients) {
+            foreach (var m in newRecipients) {
+                AddRecipient(new MailAddress(m));
+            }
+        }
+
+        /// <summary>
+        /// Disposes of the EmailLogger class.
+        /// </summary>
+        public virtual void Dispose() {
+            mailClient.Dispose();
         }
 
         /// <summary>
@@ -149,11 +197,11 @@ namespace rgLogger {
         }
 
         /// <summary>
-        /// Event handler for when a mail is finished sending
+        /// Event handler for when a mail is finished sending.
         /// </summary>
-        /// <param name="Sender"></param>
-        /// <param name="e"></param>
-        private void SendCompleted(object Sender, AsyncCompletedEventArgs e) {
+        /// <param name="sender">The sending object.</param>
+        /// <param name="e">AsyncCompletedEventArgs object</param>
+        private void SendCompleted(object sender, AsyncCompletedEventArgs e) {
             if (messageQueue.Any()) {
                 mailClient.SendAsync(messageQueue[0], null);
                 messageQueue.RemoveAt(0);
@@ -163,35 +211,12 @@ namespace rgLogger {
             }
         }
 
-        public void AddRecipient(MailAddress newRecipient) {
-            if (Recipient == null) { Recipient = new MailAddressCollection(); }
-            Recipient.Add(newRecipient);
-        }
-
-        public void AddRecipient(string newRecipient) {
-            Recipient.Add(new MailAddress(newRecipient));
-        }
-
-        public void AddRecipient(List<MailAddress> newRecipients) {
-            foreach (var m in newRecipients) {
-                AddRecipient(m);
-            }
-        }
-
-        public void AddRecipient(List<string> newRecipients) {
-            foreach (var m in newRecipients) {
-                AddRecipient(new MailAddress(m));
-            }
-        }
-
-        public void AddRecipient(string[] newRecipients) {
-            foreach (var m in newRecipients) {
-                AddRecipient(new MailAddress(m));
-            }
-        }
-
-        public override void Dispose() {
-            base.Dispose();
+        /// <summary>
+        /// Connect to the SMTP server. This needs to be called before sending messages.
+        /// </summary>
+        private void Connect() {
+            mailClient = new SmtpClient(SmtpServer, SmtpPort);
+            mailClient.SendCompleted += new SendCompletedEventHandler(SendCompleted);
         }
     }
 }

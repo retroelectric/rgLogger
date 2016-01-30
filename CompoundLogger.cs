@@ -6,25 +6,33 @@ namespace rgLogger {
     /// <summary>
     /// Combines multiple loggers so more than action can be taken for every log entry.
     /// </summary>
-    public class CompoundLogger : BaseLogger, IEnumerable<BaseLogger> {
+    public class CompoundLogger : BaseLogger, IDisposable, IEnumerable<BaseLogger> {
+        /// <summary>
+        /// Contains the collection of loggers.
+        /// </summary>
         private List<BaseLogger> loggerList;
+
+        /// <summary>
+        /// Initializes a new instance of the CompoundLogger class.
+        /// </summary>
         public CompoundLogger() {
             loggerList = new List<BaseLogger>();
             Level = LogLevel.All;
         }
+
         /// <summary>
-        /// Creates a new CompoundLogger
+        /// Initializes a new instance of the CompoundLogger class.
         /// </summary>
-        /// <param name="newList"></param>
-        public CompoundLogger(List<BaseLogger> newList) {
-            loggerList = newList;
+        /// <param name="loggerCollection">A collection of configured logging objects.</param>
+        public CompoundLogger(List<BaseLogger> loggerCollection) {
+            loggerList = loggerCollection;
             Level = LogLevel.All;
         }
 
         /// <summary>
         /// Adds a new logger to the collection.
         /// </summary>
-        /// <param name="newLogger">The configured logger to add.</param>
+        /// <param name="newLogger">The configured logging objects to add.</param>
         public void Add(BaseLogger newLogger) {
             loggerList.Add(newLogger);
         }
@@ -41,26 +49,39 @@ namespace rgLogger {
         }
 
         /// <summary>
-        /// Writes a message to all of the loggers in the collection with their default logging level.
+        /// Enumerates over the loggers in the collection.
         /// </summary>
-        /// <param name="message">The log message.</param>
-        internal override void WriteToLog(string message) {
-            foreach(BaseLogger l in loggerList) {
-                l.WriteToLog(message);
-            }
-        }
-
+        /// <returns>The enumerator for the logging collection.</returns>
         public IEnumerator<BaseLogger> GetEnumerator() {
             return loggerList.GetEnumerator();
         }
 
+        /// <summary>
+        /// Enumerates over the loggers in the collection.
+        /// </summary>
+        /// <returns>The enumerator for the logging collection.</returns>
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
             return this.GetEnumerator();
         }
 
-        public new void Dispose() {
-            foreach(BaseLogger l in loggerList) {
-                l.Dispose();
+        /// <summary>
+        /// Disposes of all loggers in the collection that implement IDisposable.
+        /// </summary>
+        public void Dispose() {
+            foreach (BaseLogger logger in loggerList) {
+                if (logger is IDisposable) {
+                    ((IDisposable)logger).Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Writes a message to all of the loggers in the collection with their default logging level.
+        /// </summary>
+        /// <param name="message">The log message.</param>
+        internal override void WriteToLog(string message) {
+            foreach (BaseLogger l in loggerList) {
+                l.WriteToLog(message);
             }
         }
     }

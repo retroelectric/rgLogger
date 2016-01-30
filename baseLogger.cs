@@ -3,73 +3,35 @@ using System.Collections.Generic;
 using System.Linq;
 
 namespace rgLogger {
-
-
     /// <summary>
     /// A base class for all logging objects to implement that provides consistent
-    /// message formating and filtering.
+    /// message formatting and filtering.
     /// </summary>
-    public abstract class BaseLogger : IDisposable {
-        protected bool isDisposed;
-
+    public abstract class BaseLogger {
         /// <summary>
-        /// the default log level for messages
+        /// Gets or sets the log level to send messages at.
         /// </summary>
         public LogLevel Level { get; set; } = LogLevel.Debug;
 
         /// <summary>
-        /// Format string for the timestamp
+        /// Gets or sets the timestamp format to use for log messages.
         /// </summary>
         public string TimestampFormat { get; set; } = "yyyy-MM-dd HH:mm:ss";
 
         /// <summary>
-        /// Show the timestamp in UTC?
+        /// Gets or sets a value indicating whether the timestamp should be in UTC.
         /// </summary>
         public bool TimestampInUtc { get; set; }
 
         /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="messageLevel"></param>
-        /// <returns></returns>
-        protected bool sendMessage(LogLevel messageLevel) {
-            if (Level != LogLevel.None && messageLevel != LogLevel.None) {
-                if (Level == LogLevel.All || messageLevel <= Level) { return true; }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Sets whether to keep the line endings or replace them with the value of the LineEnding parameter.
+        /// Gets or sets a value indicating whether to keep the existing line endings or replace them with the value of the LineEnding parameter.
         /// </summary>
         public bool KeepLineEndings { get; set; }
 
         /// <summary>
-        /// If KeepLineEndings is true then the line endings of the log messages will be replaced by this. Default is Environment.NewLine
+        /// Gets or sets the line ending to use when replacing them if (KeepLineEndings == false). Default value is Environment.NewLine
         /// </summary>
         public string LineEnding { get; set; } = Environment.NewLine;
-
-        /// <summary>
-        /// Returns a string with the line endings replaced.
-        /// </summary>
-        /// <param name="OriginalString">The string to replace the line endings in.</param>
-        /// <returns>The original string with the line endings converted.</returns>
-        internal string FixLineEndings(string OriginalString) {
-            // line endings ordered by length except the one matching the proper line ending
-            var otherLineEndings = from s in new string[] { "\n\r", "\r\n", "\n", "\r" }
-                            where s!=LineEnding
-                            orderby s.Length descending
-                            select s;
-
-            string[] allLineEndings = { "\n\r", "\r\n", "\n", "\r" };
-
-            foreach (string nl in otherLineEndings) {
-                OriginalString = OriginalString.Replace(nl, LineEnding);
-            }
-
-            return OriginalString;
-        }
 
         /// <summary>
         /// Write a message to the logger
@@ -77,9 +39,12 @@ namespace rgLogger {
         /// <param name="message">Message text to log</param>
         /// <param name="messageLevel">Level of detail for this message</param>
         public virtual void Write(string message, LogLevel messageLevel) {
-            if (sendMessage(messageLevel)) {
-                if (!KeepLineEndings) { message = FixLineEndings(message); }
-                WriteToLog(String.Format("{0} {1}", MessagePrefix(messageLevel), message));
+            if (CheckMessageLevel(messageLevel)) {
+                if (!KeepLineEndings) {
+                    message = FixLineEndings(message);
+                }
+
+                WriteToLog(string.Format("{0} {1}", MessagePrefix(messageLevel), message));
             }
         }
 
@@ -89,13 +54,9 @@ namespace rgLogger {
         /// <param name="messageLevel">Level of detail for this message</param>
         /// <returns>prefix for the log message text</returns>
         public string MessagePrefix(LogLevel messageLevel) {
-            string messagePrefix = "";
+            var logLevelText = (messageLevel == LogLevel.All) ? string.Empty : $"[{ messageLevel.ToString().ToUpper() }]";
 
-            if (messageLevel != LogLevel.All) {
-                messagePrefix += String.Format("[{0}] ", messageLevel.ToString().ToUpper());
-            }
-
-            return String.Format("{0} {1}", GetCurrentTimestamp(), messagePrefix);
+            return $"{ GetCurrentTimestamp() } { logLevelText }";
         }
 
         /// <summary>
@@ -107,25 +68,57 @@ namespace rgLogger {
         }
 
         /// <summary>
+        /// gets the current timestamp
+        /// </summary>
+        /// <returns>a string containing the current time</returns>
+        public string GetCurrentTimestamp() {
+            if (string.IsNullOrEmpty(TimestampFormat)) {
+                return string.Empty;
+            }
+
+            return (TimestampInUtc) ? DateTime.UtcNow.ToString(TimestampFormat) : DateTime.Now.ToString(TimestampFormat);
+        }
+
+        /// <summary>
         /// Abstract method used to actually write the log message to the destination.
         /// </summary>
         /// <param name="message">Log message to write.</param>
         internal abstract void WriteToLog(string message);
 
         /// <summary>
-        /// gets the current timestamp
+        /// Returns a string with the line endings replaced.
         /// </summary>
-        /// <returns>a string containing the current time</returns>
-        public string GetCurrentTimestamp() {
-            if (string.IsNullOrEmpty(TimestampFormat)) { return ""; }
+        /// <param name="originalString">The string to replace the line endings in.</param>
+        /// <returns>The original string with the line endings converted.</returns>
+        internal string FixLineEndings(string originalString) {
+            // line endings ordered by length except the one matching the proper line ending
+            var otherLineEndings = from s in new string[] { "\n\r", "\r\n", "\n", "\r" }
+                                   where s != LineEnding
+                                   orderby s.Length descending
+                                   select s;
 
-            return (TimestampInUtc) ? DateTime.UtcNow.ToString(TimestampFormat) : DateTime.Now.ToString(TimestampFormat);
+            string[] allLineEndings = { "\n\r", "\r\n", "\n", "\r" };
+
+            foreach (string nl in otherLineEndings) {
+                originalString = originalString.Replace(nl, LineEnding);
+            }
+
+            return originalString;
         }
 
-        public virtual void Dispose() {
-            if (isDisposed) { return; }
+        /// <summary>
+        /// Checks if the message level meets the level set in the Level property.
+        /// </summary>
+        /// <param name="messageLevel">The log level to check.</param>
+        /// <returns>True or false indicating if the log message meets the level.</returns>
+        protected bool CheckMessageLevel(LogLevel messageLevel) {
+            if (Level != LogLevel.None && messageLevel != LogLevel.None) {
+                if (Level == LogLevel.All || messageLevel <= Level) {
+                    return true;
+                }
+            }
 
-            isDisposed = true;
+            return false;
         }
     }
 }
