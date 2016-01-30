@@ -5,33 +5,36 @@ using System.Text;
 using System.Diagnostics;
 
 namespace rgLogger {
+    /// <summary>
+    /// Sends log messages to the console window.
+    /// </summary>
     public class ConsoleLogger : BaseLogger {
-        [Flags]
-        public enum outputStreams {
-            STDOUT = 1,
-            STDERR = 2,
-            VS_Debug = 4,
-            VS_Trace = 8
-        };
+        public ConsoleLoggerOutput OutputTo { get; set; } = ConsoleLoggerOutput.STDOUT;
 
-        private outputStreams _outputTo = outputStreams.STDOUT;
-        public outputStreams outputTo {
-            get { return _outputTo; }
-            set { _outputTo = value; }
-        }
-
+        /// <summary>
+        /// Create a new console logger using the default logging level.
+        /// </summary>
         public ConsoleLogger() {
             LineEnding = Console.Out.NewLine;
         }
-        public ConsoleLogger(logLevel messageLevel) : this() {
-            level = messageLevel;
+
+        /// <summary>
+        /// Create a new console logger using the specified logging level.
+        /// </summary>
+        /// <param name="messageLevel"></param>
+        public ConsoleLogger(LogLevel messageLevel) : this() {
+            Level = messageLevel;
         }
 
+        /// <summary>
+        /// Writes a log message.
+        /// </summary>
+        /// <param name="message">The log message.</param>
         internal override void WriteToLog(string message) {
-            if((outputTo & outputStreams.STDOUT) != 0) { Console.WriteLine(message); }
-            if((outputTo & outputStreams.STDERR) != 0) { Console.Error.WriteLine(message); }
-            if((outputTo & outputStreams.VS_Debug) != 0) { Debug.WriteLine(message); }
-            if((outputTo & outputStreams.VS_Trace) != 0) { Trace.WriteLine(message); }
+            if((OutputTo & ConsoleLoggerOutput.STDOUT) != 0) { Console.WriteLine(message); }
+            if((OutputTo & ConsoleLoggerOutput.STDERR) != 0) { Console.Error.WriteLine(message); }
+            if((OutputTo & ConsoleLoggerOutput.VS_Debug) != 0) { Debug.WriteLine(message); }
+            if((OutputTo & ConsoleLoggerOutput.VS_Trace) != 0) { Trace.WriteLine(message); }
         }
     }
 }

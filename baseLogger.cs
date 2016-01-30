@@ -3,81 +3,72 @@ using System.Collections.Generic;
 using System.Linq;
 
 namespace rgLogger {
-    /// <summary>
-    /// Logging detail levels
-    /// </summary>
-    public enum logLevel {
-        None = 0,
-        All = 1,
-        Fatal = 2,
-        Warn = 3,
-        Info = 4,
-        Debug = 5
-    };
+
 
     /// <summary>
     /// A base class for all logging objects to implement that provides consistent
     /// message formating and filtering.
     /// </summary>
     public abstract class BaseLogger : IDisposable {
+        protected bool isDisposed;
 
-        internal bool isDisposed;
-
-        private logLevel _level = logLevel.Debug;
         /// <summary>
         /// the default log level for messages
         /// </summary>
-        public logLevel level {
-            get { return _level; }
-            set { _level = value; }
-        }
+        public LogLevel Level { get; set; } = LogLevel.Debug;
 
-        private string _timestamp = "yyyy-MM-dd HH:mm:ss";
         /// <summary>
         /// Format string for the timestamp
         /// </summary>
-        public string timestamp {
-            get { return _timestamp; }
-            set { _timestamp = value; }
-        }
+        public string TimestampFormat { get; set; } = "yyyy-MM-dd HH:mm:ss";
 
         /// <summary>
         /// Show the timestamp in UTC?
         /// </summary>
-        public bool timestampInUTC { get; set; }
+        public bool TimestampInUtc { get; set; }
 
-        internal bool sendMessage(logLevel messageLevel) {
-            if (level != logLevel.None && messageLevel != logLevel.None) {
-                if (level == logLevel.All || messageLevel <= level) { return true; }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="messageLevel"></param>
+        /// <returns></returns>
+        protected bool sendMessage(LogLevel messageLevel) {
+            if (Level != LogLevel.None && messageLevel != LogLevel.None) {
+                if (Level == LogLevel.All || messageLevel <= Level) { return true; }
             }
 
             return false;
         }
 
-        private bool _replaceLineEndings = true;
-        public bool ReplaceLineEndings {
-            get { return _replaceLineEndings; }
-            set { _replaceLineEndings = value; }
-        }
+        /// <summary>
+        /// Sets whether to keep the line endings or replace them with the value of the LineEnding parameter.
+        /// </summary>
+        public bool KeepLineEndings { get; set; }
 
-        private string _lineEnding = Environment.NewLine;
-        public string LineEnding {
-            get { return _lineEnding; }
-            set { _lineEnding = value; }
-        }
+        /// <summary>
+        /// If KeepLineEndings is true then the line endings of the log messages will be replaced by this. Default is Environment.NewLine
+        /// </summary>
+        public string LineEnding { get; set; } = Environment.NewLine;
 
-        internal string FixLineEndings(string message) {
+        /// <summary>
+        /// Returns a string with the line endings replaced.
+        /// </summary>
+        /// <param name="OriginalString">The string to replace the line endings in.</param>
+        /// <returns>The original string with the line endings converted.</returns>
+        internal string FixLineEndings(string OriginalString) {
             // line endings ordered by length except the one matching the proper line ending
             var otherLineEndings = from s in new string[] { "\n\r", "\r\n", "\n", "\r" }
                             where s!=LineEnding
                             orderby s.Length descending
                             select s;
 
+            string[] allLineEndings = { "\n\r", "\r\n", "\n", "\r" };
+
             foreach (string nl in otherLineEndings) {
-                message = message.Replace(nl, LineEnding);
+                OriginalString = OriginalString.Replace(nl, LineEnding);
             }
 
-            return message;
+            return OriginalString;
         }
 
         /// <summary>
@@ -85,9 +76,9 @@ namespace rgLogger {
         /// </summary>
         /// <param name="message">Message text to log</param>
         /// <param name="messageLevel">Level of detail for this message</param>
-        public virtual void Write(string message, logLevel messageLevel) {
+        public virtual void Write(string message, LogLevel messageLevel) {
             if (sendMessage(messageLevel)) {
-                if (ReplaceLineEndings) { message = FixLineEndings(message); }
+                if (!KeepLineEndings) { message = FixLineEndings(message); }
                 WriteToLog(String.Format("{0} {1}", MessagePrefix(messageLevel), message));
             }
         }
@@ -97,10 +88,10 @@ namespace rgLogger {
         /// </summary>
         /// <param name="messageLevel">Level of detail for this message</param>
         /// <returns>prefix for the log message text</returns>
-        public string MessagePrefix(logLevel messageLevel) {
+        public string MessagePrefix(LogLevel messageLevel) {
             string messagePrefix = "";
 
-            if (messageLevel != logLevel.All) {
+            if (messageLevel != LogLevel.All) {
                 messagePrefix += String.Format("[{0}] ", messageLevel.ToString().ToUpper());
             }
 
@@ -112,7 +103,7 @@ namespace rgLogger {
         /// </summary>
         /// <param name="message">Message text to log</param>
         public void Write(string message) {
-            Write(message, level);
+            Write(message, Level);
         }
 
         /// <summary>
@@ -126,9 +117,9 @@ namespace rgLogger {
         /// </summary>
         /// <returns>a string containing the current time</returns>
         public string GetCurrentTimestamp() {
-            if (timestamp.Length == 0) { return ""; }
+            if (string.IsNullOrEmpty(TimestampFormat)) { return ""; }
 
-            return (timestampInUTC) ? DateTime.UtcNow.ToString(timestamp) : DateTime.Now.ToString(timestamp);
+            return (TimestampInUtc) ? DateTime.UtcNow.ToString(TimestampFormat) : DateTime.Now.ToString(TimestampFormat);
         }
 
         public virtual void Dispose() {
