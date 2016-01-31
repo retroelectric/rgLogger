@@ -1,8 +1,6 @@
-﻿################################################################################
-# This .gitignore file was automatically created by Microsoft(R) Visual Studio.
-################################################################################
-
+﻿*.suo
+StyleCop.Cache
 /rgLogger/obj
 /rgLogger/bin
-StyleCop.Cache
-*.suo
+/rgLogger.Tests/obj
+/rgLogger.Tests/bin

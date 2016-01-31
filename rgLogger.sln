@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Express 2013 for Windows Desktop
-VisualStudioVersion = 12.0.21005.1
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rgLogger", "rgLogger\rgLogger.csproj", "{895508F0-7850-44C8-B07C-611E018D386E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "rgLogger.Tests", "rgLogger.Tests\rgLogger.Tests.csproj", "{D4843BB5-89F1-4550-96E2-1568DD001254}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{895508F0-7850-44C8-B07C-611E018D386E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{895508F0-7850-44C8-B07C-611E018D386E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{895508F0-7850-44C8-B07C-611E018D386E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D4843BB5-89F1-4550-96E2-1568DD001254}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D4843BB5-89F1-4550-96E2-1568DD001254}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D4843BB5-89F1-4550-96E2-1568DD001254}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D4843BB5-89F1-4550-96E2-1568DD001254}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
