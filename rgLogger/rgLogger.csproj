@@ -45,7 +45,7 @@
       <ExcludeFromStyleCop>False</ExcludeFromStyleCop>
     </Compile>
     <Compile Include="CompoundLogger.cs" />
-    <Compile Include="ConsoleLoggerOutputStreams.cs" />
+    <Compile Include="ConsoleLoggerOutput.cs" />
     <Compile Include="CumulativeEmailLogger.cs" />
     <None Include="DbLogger.cs" />
     <Compile Include="EmailLogger.cs" />

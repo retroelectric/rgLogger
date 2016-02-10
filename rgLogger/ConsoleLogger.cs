@@ -35,7 +35,7 @@ namespace rgLogger {
         /// <param name="message">The log message.</param>
         internal override void WriteToLog(string message) {
             if (OutputTo.HasFlag(ConsoleLoggerOutput.ConsoleStandardOutput)) {
-                Console.Write(message);
+                Console.WriteLine(message);
             }
 
             if (OutputTo.HasFlag(ConsoleLoggerOutput.ConsoleErrorOutput)) {
