@@ -19,25 +19,13 @@ namespace rgLogger {
         /// </summary>
         private List<MailMessage> messageQueue = new List<MailMessage>();
 
-        /// <summary>
-        /// Initializes a new instance of the EmailLogger class.
-        /// </summary>
-        /// <param name="server">SMTP server's IP/hostname.</param>
-        public EmailLogger(string server) {
-            SmtpServer = server;
-            Connect();
+        public EmailLogger(SmtpClient client) {
+            mailClient = client;
+            mailClient.SendCompleted += new SendCompletedEventHandler(SendCompleted);
         }
 
-        /// <summary>
-        /// Initializes a new instance of the EmailLogger class.
-        /// </summary>
-        /// <param name="server">SMTP server's IP/hostname.</param>
-        /// <param name="port">SMTP server's port.</param>
-        public EmailLogger(string server, int port) {
-            SmtpServer = server;
-            SmtpPort = port;
-            Connect();
-        }
+        public EmailLogger(string server, int port = 25)
+            : this(new SmtpClient(server, port)) { }
 
         /// <summary>
         /// Initializes a new instance of the EmailLogger class.
@@ -209,14 +197,6 @@ namespace rgLogger {
             else {
                 SendingMessage = false;
             }
-        }
-
-        /// <summary>
-        /// Connect to the SMTP server. This needs to be called before sending messages.
-        /// </summary>
-        private void Connect() {
-            mailClient = new SmtpClient(SmtpServer, SmtpPort);
-            mailClient.SendCompleted += new SendCompletedEventHandler(SendCompleted);
         }
     }
 }
