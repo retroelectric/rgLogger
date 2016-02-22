@@ -18,12 +18,17 @@ using rgLogger;
 
 namespace rgLogger.Tests {
     [TestClass]
-    class EmailLoggerTest {
+    public class EmailLoggerTest {
         [TestMethod]
         public void SendsEmailMessagesForAllLogEntries() {
             var logMessages = new List<string>();
 
             using (ShimsContext.Create()) {
+                System.Fakes.ShimDateTime.NowGet = () => {
+                    // make DateTime.Now deterministic based on the number of log messages that have been written.
+                    return new DateTime(1999, 12, 31, 23, logMessages.Count, 13);
+                };
+
                 ShimSmtpClient.Constructor = @this => {
                     var shim = new ShimSmtpClient(@this);
                     shim.SendMailMessage = e => {
@@ -32,10 +37,17 @@ namespace rgLogger.Tests {
                 };
 
                 var logWriter = new EmailLogger("test.server", LogLevel.All);
-                logWriter.Write("the quick brown fox jumped over the lazy dog.", LogLevel.All);
-                logWriter.Write("Who are you people? Torchwood.");
+                logWriter.AddRecipient("test@test.com");
 
-                Assert.AreEqual(logMessages, new List<string>() { "the quick brown fox jumped over the lazy dog.", "Who are you people? Torchwood." });
+                logWriter.Write("the quick brown fox jumped over the lazy dog.", LogLevel.All);
+                logWriter.Write("Who are you people? Torchwood.", LogLevel.Warn);
+
+                var expectedResult = new List<string>() {
+                    // log line for logLevel.All output
+                    $"{ new DateTime(1999, 12, 31, 23, 1, 13).ToString(logWriter.TimestampFormat) } the quick brown fox jumped over the lazy dog.",
+                    $"{ new DateTime(1999, 12, 31, 23, 2, 13).ToString(logWriter.TimestampFormat) } [WARN] Who are you people? Torchwood.",
+                };
+                Assert.AreEqual(logMessages, expectedResult);
             }
         }
     }
