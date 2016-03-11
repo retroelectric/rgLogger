@@ -10,7 +10,7 @@ namespace rgLogger {
     /// </summary>
     public class Notifier: IDisposable {
         private EmailLogger logWriter;
-        private Dictionary<string, List<string>> notifications;
+        private Dictionary<string, List<string>> notifications = new Dictionary<string, List<string>>();
         private List<NotificationMessage> sentNotifications;
 
         /// <summary>
@@ -25,6 +25,24 @@ namespace rgLogger {
         /// Gets or sets the filename used for storing the notification data.
         /// </summary>
         public string NotificationStorageFile { get; set; } = "rgnotify.dat";
+
+        /// <summary>
+        /// Adds a new notification.
+        /// </summary>
+        /// <param name="NotificationName">Name of the notification type.</param>
+        /// <param name="Recipient">Recipients' email addresses.</param>
+        public void AddNotification(string NotificationName, List<string> Recipients) {
+            notifications.Add(NotificationName, Recipients);
+        }
+
+        /// <summary>
+        /// Adds a new notification.
+        /// </summary>
+        /// <param name="NotificationName">Name of the notification type.</param>
+        /// <param name="Recipient">Recipient's email address.</param>
+        public void AddNotification(string NotificationName, string Recipient) {
+            AddNotification(NotificationName, new List<string>() { Recipient });
+        }
 
         /// <summary>
         /// Send a notification message
