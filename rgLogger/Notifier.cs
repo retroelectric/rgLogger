@@ -17,8 +17,9 @@ namespace rgLogger {
         /// Initializes a new instance of the Notifier class.
         /// </summary>
         /// <param name="logger"></param>
-        public Notifier(EmailLogger logger) {
+        public Notifier(EmailLogger logger, int DaysToWait = -1) {
             logWriter = logger;
+            GetSentNotifications(DaysToWait);
         }
 
         /// <summary>
