@@ -91,10 +91,18 @@ namespace rgLogger {
         /// </summary>
         public MailAddressCollection Recipient { get; set; }
 
+        private MailAddress _replyTo;
         /// <summary>
         /// Gets or sets the email address to set as the reply to address.
         /// </summary>
-        public MailAddress ReplyTo { get; set; }
+        public MailAddress ReplyTo {
+            get {
+                return _replyTo ?? Sender;
+            }
+            set {
+                _replyTo = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the subject line for the emails. (Default = "Log message from ProcessName")
@@ -123,7 +131,7 @@ namespace rgLogger {
         /// </summary>
         /// <param name="newRecipient">Email address of the recipient.</param>
         public void AddRecipient(string newRecipient) {
-            Recipient.Add(new MailAddress(newRecipient));
+            AddRecipient(new MailAddress(newRecipient));
         }
 
         /// <summary>

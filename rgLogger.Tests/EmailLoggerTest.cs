@@ -36,7 +36,13 @@ namespace rgLogger.Tests {
                     };
                 };
 
-                var logWriter = new EmailLogger("test.server", LogLevel.All);
+                var smptcli = new SmtpClient("smtp.test.com");
+
+                //var logWriter = new EmailLogger("test.server", LogLevel.All) {
+                var logWriter = new EmailLogger(smptcli) {
+                    Sender = new MailAddress("fake@microsoft.com"),
+                    Asynchronous = false
+                };
                 logWriter.AddRecipient("test@test.com");
 
                 logWriter.Write("the quick brown fox jumped over the lazy dog.", LogLevel.All);
