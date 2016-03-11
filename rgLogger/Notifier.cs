@@ -8,17 +8,30 @@ namespace rgLogger {
     /// <summary>
     /// Uses an EmailLogger or CumulativeEmailLogger to send notifications which can be configured to suppress duplicate alerts for a given period of time.
     /// </summary>
-    public class Notifier: IDisposable {
+    public class Notifier : IDisposable {
+        /// <summary>
+        /// Email logger used to send the notifications.
+        /// </summary>
         private EmailLogger logWriter;
-        private Dictionary<string, List<string>> notifications;
+
+        /// <summary>
+        /// Stores the types of notifications that can be sent and their recipients.
+        /// </summary>
+        private Dictionary<string, List<string>> notifications = new Dictionary<string, List<string>>();
+
+        /// <summary>
+        /// Stores the notification that have been sent.
+        /// </summary>
         private List<NotificationMessage> sentNotifications;
 
         /// <summary>
         /// Initializes a new instance of the Notifier class.
         /// </summary>
-        /// <param name="logger"></param>
-        public Notifier(EmailLogger logger) {
+        /// <param name="logger">The EmailLogger object used to send the notifications.</param>
+        /// <param name="daysToWait">Number of days to suppress a notification. Default is to not suppress them at all.</param>
+        public Notifier(EmailLogger logger, int daysToWait = -1) {
             logWriter = logger;
+            GetSentNotifications(daysToWait);
         }
 
         /// <summary>
@@ -27,23 +40,51 @@ namespace rgLogger {
         public string NotificationStorageFile { get; set; } = "rgnotify.dat";
 
         /// <summary>
+        /// Adds a new notification.
+        /// </summary>
+        /// <param name="notificationName">Name of the notification type.</param>
+        /// <param name="recipients">Recipients' email addresses.</param>
+        public void AddNotification(string notificationName, List<string> recipients) {
+            notifications.Add(notificationName, recipients);
+        }
+
+        /// <summary>
+        /// Adds a new notification.
+        /// </summary>
+        /// <param name="notificationName">Name of the notification type.</param>
+        /// <param name="recipient">Recipient's email address.</param>
+        public void AddNotification(string notificationName, string recipient) {
+            AddNotification(notificationName, new List<string>() { recipient });
+        }
+
+        /// <summary>
         /// Send a notification message
         /// </summary>
-        /// <param name="Notification">A NotificationMessage object that defines the message to be sent.</param>
-        public void SendNotification(NotificationMessage Notification) {
-            if (!notifications.ContainsKey(Notification.Name)) { return; }
+        /// <param name="notification">A NotificationMessage object that defines the message to be sent.</param>
+        public void SendNotification(NotificationMessage notification) {
+            if (!notifications.ContainsKey(notification.Name)) {
+                return;
+            }
 
-            var notificationHistory = sentNotifications.Where(n => n.Equals(Notification)).SingleOrDefault();
+            var notificationHistory = sentNotifications.Where(n => n.Equals(notification)).SingleOrDefault();
 
             if (notificationHistory == null) {
-                Notification.NotificationUsed = true;
-                Notification.DateSent = DateTime.Now;
-                sentNotifications.Add(Notification);
-                SendEmail(Notification);
+                notification.NotificationUsed = true;
+                notification.DateSent = DateTime.Now;
+                sentNotifications.Add(notification);
+                SendEmail(notification);
             }
             else {
                 notificationHistory.NotificationUsed = true;
             }
+        }
+
+        /// <summary>
+        /// Close the email notification object and serialize the sent notifications to disk.
+        /// </summary>
+        public void Dispose() {
+            StoreSentNotifications();
+            logWriter.Dispose();
         }
 
         /// <summary>
@@ -59,15 +100,16 @@ namespace rgLogger {
         /// <summary>
         /// Retrieves the notifications that were sent during the last run.
         /// </summary>
-        private void GetSentNotifications(int DaysToWait) {
+        /// <param name="daysToWait">Number of days to suppress a notification.</param>
+        private void GetSentNotifications(int daysToWait) {
             try {
                 using (var notificationFileStream = new System.IO.FileStream(NotificationStorageFile, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read)) {
                     var notificationBinaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
 
                     var storedNotifications = (List<NotificationMessage>)notificationBinaryFormatter.Deserialize(notificationFileStream);
 
-                    if (DaysToWait >= 0) {
-                        sentNotifications = storedNotifications.Where(x => x.DateSent.AddDays(DaysToWait) >= DateTime.Now).ToList();
+                    if (daysToWait >= 0) {
+                        sentNotifications = storedNotifications.Where(x => x.DateSent.AddDays(daysToWait) >= DateTime.Now).ToList();
                     }
                     else {
                         sentNotifications = storedNotifications;
@@ -87,19 +129,11 @@ namespace rgLogger {
         /// <summary>
         /// Send the notification email.
         /// </summary>
-        /// <param name="Notification">The notification message to send.</param>
-        private void SendEmail(NotificationMessage Notification) {
-            logWriter.AddRecipient(notifications[Notification.Name]);
-            logWriter.Subject = Notification.Subject;
-            logWriter.Write(Notification.Message, LogLevel.All);
-        }
-
-        /// <summary>
-        /// Close the email notification object and serialize the sent notifications to disk.
-        /// </summary>
-        public void Dispose() {
-            StoreSentNotifications();
-            logWriter.Dispose();
+        /// <param name="notification">The notification message to send.</param>
+        private void SendEmail(NotificationMessage notification) {
+            logWriter.AddRecipient(notifications[notification.Name]);
+            logWriter.Subject = notification.Subject;
+            logWriter.Write(notification.Message, LogLevel.All);
         }
     }
 }
