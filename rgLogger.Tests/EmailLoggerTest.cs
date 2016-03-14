@@ -120,9 +120,17 @@ namespace rgLogger.Tests {
             using (var logWriter = new EmailLogger("test.server", LogLevel.Warn)) {
                 logWriter.Sender = new MailAddress("sender@fakes.test");
 
-                Assert.AreEqual(logWriter.Sender.Address, logWriter.ReplyTo.Address, "ReplyTo does not equal Sender.");
+                Assert.AreEqual(logWriter.Sender.Address, logWriter.ReplyTo.Address, "ReplyTo does not equal Sender when ReplyTo is not explicitly set.");
             }
         }
 
+        [TestMethod]
+        public void ReplyToGetsSetCorrectly() {
+            using (var logWriter = new EmailLogger("test.server", LogLevel.Warn)) {
+                var newReplyTo = new MailAddress("replyto@fakes.test");
+                logWriter.ReplyTo = newReplyTo;
+                Assert.AreEqual(newReplyTo, logWriter.ReplyTo, "ReplyTo is not the expected value when it is set explicitly");
+            }
+        }
     }
 }
