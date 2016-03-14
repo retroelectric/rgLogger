@@ -36,18 +36,22 @@ namespace rgLogger.Tests {
                     };
                 };
 
-                var logWriter = new EmailLogger("test.server", LogLevel.All);
-                logWriter.AddRecipient("test@test.com");
+                var logWriter = new EmailLogger("test.server", LogLevel.All) {
+                    Sender = new MailAddress("fakes@test.server"),
+                    Asynchronous = false
+                };
+                logWriter.AddRecipient("recipient@test.server");
 
                 logWriter.Write("the quick brown fox jumped over the lazy dog.", LogLevel.All);
                 logWriter.Write("Who are you people? Torchwood.", LogLevel.Warn);
 
                 var expectedResult = new List<string>() {
                     // log line for logLevel.All output
-                    $"{ new DateTime(1999, 12, 31, 23, 1, 13).ToString(logWriter.TimestampFormat) } the quick brown fox jumped over the lazy dog.",
-                    $"{ new DateTime(1999, 12, 31, 23, 2, 13).ToString(logWriter.TimestampFormat) } [WARN] Who are you people? Torchwood.",
+                    $"{ new DateTime(1999, 12, 31, 23, 0, 13).ToString(logWriter.TimestampFormat) }  the quick brown fox jumped over the lazy dog.",
+                    $"{ new DateTime(1999, 12, 31, 23, 1, 13).ToString(logWriter.TimestampFormat) } [WARN] Who are you people? Torchwood.",
                 };
-                Assert.AreEqual(logMessages, expectedResult);
+
+                CollectionAssert.AreEqual(logMessages, expectedResult);
             }
         }
     }
