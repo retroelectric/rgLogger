@@ -86,16 +86,6 @@ namespace rgLogger {
         public bool Asynchronous { get; set; } = true;
 
         /// <summary>
-        /// Gets or sets the proxy server IP address or hostname.
-        /// </summary>
-        public string ProxyServer { get; set; }
-
-        /// <summary>
-        /// Gets or sets the port used to connect to the proxy server.
-        /// </summary>
-        public string ProxyPort { get; set; }
-
-        /// <summary>
         /// Gets or sets the email address to send emails from.
         /// </summary>
         public MailAddress Sender { get; set; }
