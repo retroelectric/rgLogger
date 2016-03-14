@@ -9,7 +9,7 @@ using Microsoft.QualityTools.Testing.Fakes;
 
 /* Things to check:
  * 1. [DONE] An email is sent for each call to Write().
- * 2. Messages are not sent at the wrong logging level (test log level filtering)
+ * 2. [DONE] Messages are not sent at the wrong logging level (test log level filtering)
  * 3. Async is used when the property is set.
  * 4. Adding recipients works correctly.
  * 5. [DONE] ReplyTo uses the Sender address when not set.
@@ -123,5 +123,6 @@ namespace rgLogger.Tests {
                 Assert.AreEqual(logWriter.Sender.Address, logWriter.ReplyTo.Address, "ReplyTo does not equal Sender.");
             }
         }
+
     }
 }
