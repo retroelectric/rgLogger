@@ -10,22 +10,36 @@ namespace rgLogger {
     /// </summary>
     public class EmailLogger : BaseLogger, IDisposable {
         /// <summary>
-        /// The SmtpClient class to use to send emails.
+        /// The SmtpClient object to use to send emails.
         /// </summary>
         private SmtpClient mailClient;
 
         /// <summary>
-        /// List used to store the queue of email messages to send.
+        /// Stores the queue of email messages to send.
         /// </summary>
         private List<MailMessage> messageQueue = new List<MailMessage>();
 
+        /// <summary>
+        /// Backing field for the ReplyTo property.
+        /// </summary>
+        private MailAddress _replyTo;
+
+        /// <summary>
+        /// Initializes a new instance of the EmailLogger class using the provided SmtpClient.
+        /// </summary>
+        /// <param name="client">A configured SmtpClient object.</param>
         public EmailLogger(SmtpClient client) {
             mailClient = client;
             mailClient.SendCompleted += new SendCompletedEventHandler(SendCompleted);
         }
 
+        /// <summary>
+        /// Initializes a new instance of the EmailLogger class.
+        /// </summary>
+        /// <param name="server">Hostname or IP address of the SMTP server.</param>
+        /// <param name="port">The port to use when connecting to the SMTP server. (Default = 25)</param>
         public EmailLogger(string server, int port = 25)
-            : this(new SmtpClient(server, port)) { }
+            : this(new SmtpClient() { Host = server, Port = port }) { }
 
         /// <summary>
         /// Initializes a new instance of the EmailLogger class.
@@ -89,12 +103,20 @@ namespace rgLogger {
         /// <summary>
         /// Gets or sets a collection of email addresses to be the recipients of the email.
         /// </summary>
-        public MailAddressCollection Recipient { get; set; }
+        public MailAddressCollection Recipient { get; set; } = new MailAddressCollection();
 
         /// <summary>
         /// Gets or sets the email address to set as the reply to address.
         /// </summary>
-        public MailAddress ReplyTo { get; set; }
+        public MailAddress ReplyTo {
+            get {
+                return _replyTo ?? Sender;
+            }
+
+            set {
+                _replyTo = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the subject line for the emails. (Default = "Log message from ProcessName")
@@ -111,10 +133,6 @@ namespace rgLogger {
         /// </summary>
         /// <param name="newRecipient">A MailAddress object for the new recipient.</param>
         public void AddRecipient(MailAddress newRecipient) {
-            if (Recipient == null) {
-                Recipient = new MailAddressCollection();
-            }
-
             Recipient.Add(newRecipient);
         }
 
@@ -123,7 +141,7 @@ namespace rgLogger {
         /// </summary>
         /// <param name="newRecipient">Email address of the recipient.</param>
         public void AddRecipient(string newRecipient) {
-            Recipient.Add(new MailAddress(newRecipient));
+            AddRecipient(new MailAddress(newRecipient));
         }
 
         /// <summary>
