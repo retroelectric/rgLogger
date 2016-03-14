@@ -1,4 +1,5 @@
 ﻿*.suo
+/.vs
 StyleCop.Cache
 /rgLogger/obj
 /rgLogger/bin
