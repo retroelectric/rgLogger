@@ -25,9 +25,9 @@ namespace rgLogger.Tests {
             var logMessages = new List<string>();
 
             using (ShimsContext.Create()) {
+                // make DateTime.Now deterministic based on the number of log messages that have been written.
                 ShimDateTime.NowGet = () => {
-                    // make DateTime.Now deterministic based on the number of log messages that have been written.
-                    return new DateTime(1999, 12, 24, 23, logMessages.Count, 13);
+                    return GetDeterministicDatetime(logMessages.Count);
                 };
 
                 ShimSmtpClient.Constructor = @this => {
@@ -48,8 +48,8 @@ namespace rgLogger.Tests {
 
                     var expectedResult = new List<string>() {
                         // log line for logLevel.All output
-                        $"{ new DateTime(1999, 12, 24, 23, 0, 13).ToString(logWriter.TimestampFormat) }  the quick brown fox jumped over the lazy dog.",
-                        $"{ new DateTime(1999, 12, 24, 23, 1, 13).ToString(logWriter.TimestampFormat) } [WARN] Who are you people? Torchwood.",
+                        $"{ GetDeterministicDatetime(0).ToString(logWriter.TimestampFormat) }  the quick brown fox jumped over the lazy dog.",
+                        $"{ GetDeterministicDatetime(1).ToString(logWriter.TimestampFormat) } [WARN] Who are you people? Torchwood.",
                     };
 
                     CollectionAssert.AreEqual(logMessages, expectedResult, "Log messages do not match.");
@@ -62,9 +62,9 @@ namespace rgLogger.Tests {
             var logMessages = new List<string>();
 
             using (ShimsContext.Create()) {
+                // make DateTime.Now deterministic based on the number of log messages that have been written.
                 ShimDateTime.NowGet = () => {
-                    // make DateTime.Now deterministic based on the number of log messages that have been written.
-                    return new DateTime(1999, 12, 24, 23, logMessages.Count, 13);
+                    return GetDeterministicDatetime(logMessages.Count);
                 };
 
                 ShimSmtpClient.Constructor = @this => {
@@ -103,7 +103,7 @@ namespace rgLogger.Tests {
                         foreach(var m in messagesToSend.OrderBy(x => x.Key)) {
                             if (lvl != LogLevel.None && m.Key != LogLevel.None) {
                                 if (lvl == LogLevel.All || m.Key <= lvl) {
-                                    expectedResults.Add($"{ new DateTime(1999, 12, 24, 23, i, 13).ToString(logWriter.TimestampFormat) } { ((m.Key == LogLevel.All) ? string.Empty : $"[{ m.Key.ToString().ToUpper() }]") } { m.Value }");
+                                    expectedResults.Add($"{ GetDeterministicDatetime(i).ToString(logWriter.TimestampFormat) } { ((m.Key == LogLevel.All) ? string.Empty : $"[{ m.Key.ToString().ToUpper() }]") } { m.Value }");
                                     i++;
                                 }
                             }
@@ -131,6 +131,11 @@ namespace rgLogger.Tests {
                 logWriter.ReplyTo = newReplyTo;
                 Assert.AreEqual(newReplyTo, logWriter.ReplyTo, "ReplyTo is not the expected value when it is set explicitly");
             }
+        }
+
+
+        private DateTime GetDeterministicDatetime(int minutes) {
+            return new DateTime(1999, 12, 24, 23, minutes, 13);
         }
     }
 }
