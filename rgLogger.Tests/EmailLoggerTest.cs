@@ -27,7 +27,7 @@ namespace rgLogger.Tests {
             using (ShimsContext.Create()) {
                 // make DateTime.Now deterministic based on the number of log messages that have been written.
                 ShimDateTime.NowGet = () => {
-                    return GetDeterministicDatetime(logMessages.Count);
+                    return DeterministicDateTime(logMessages.Count);
                 };
 
                 ShimSmtpClient.Constructor = @this => {
@@ -48,8 +48,8 @@ namespace rgLogger.Tests {
 
                     var expectedResult = new List<string>() {
                         // log line for logLevel.All output
-                        $"{ GetDeterministicDatetime(0).ToString(logWriter.TimestampFormat) }  the quick brown fox jumped over the lazy dog.",
-                        $"{ GetDeterministicDatetime(1).ToString(logWriter.TimestampFormat) } [WARN] Who are you people? Torchwood.",
+                        $"{ DeterministicDateTime(0).ToString(logWriter.TimestampFormat) }  the quick brown fox jumped over the lazy dog.",
+                        $"{ DeterministicDateTime(1).ToString(logWriter.TimestampFormat) } [WARN] Who are you people? Torchwood.",
                     };
 
                     CollectionAssert.AreEqual(logMessages, expectedResult, "Log messages do not match.");
@@ -64,7 +64,7 @@ namespace rgLogger.Tests {
             using (ShimsContext.Create()) {
                 // make DateTime.Now deterministic based on the number of log messages that have been written.
                 ShimDateTime.NowGet = () => {
-                    return GetDeterministicDatetime(logMessages.Count);
+                    return DeterministicDateTime(logMessages.Count);
                 };
 
                 ShimSmtpClient.Constructor = @this => {
@@ -87,10 +87,9 @@ namespace rgLogger.Tests {
                     // reset log messages
                     logMessages = new List<string>();
 
-                    using (var logWriter = new EmailLogger("test.server", LogLevel.All) {
+                    using (var logWriter = new EmailLogger("test.server", lvl) {
                         Sender = new MailAddress("fakes@test.server"),
-                        Asynchronous = false,
-                        Level = lvl
+                        Asynchronous = false
                     }) {
                         // write log messages
                         foreach(var m in messagesToSend.OrderBy(x => x.Key)) {
@@ -103,7 +102,7 @@ namespace rgLogger.Tests {
                         foreach(var m in messagesToSend.OrderBy(x => x.Key)) {
                             if (lvl != LogLevel.None && m.Key != LogLevel.None) {
                                 if (lvl == LogLevel.All || m.Key <= lvl) {
-                                    expectedResults.Add($"{ GetDeterministicDatetime(i).ToString(logWriter.TimestampFormat) } { ((m.Key == LogLevel.All) ? string.Empty : $"[{ m.Key.ToString().ToUpper() }]") } { m.Value }");
+                                    expectedResults.Add($"{ DeterministicDateTime(i).ToString(logWriter.TimestampFormat) } { ((m.Key == LogLevel.All) ? string.Empty : $"[{ m.Key.ToString().ToUpper() }]") } { m.Value }");
                                     i++;
                                 }
                             }
@@ -134,7 +133,7 @@ namespace rgLogger.Tests {
         }
 
 
-        private DateTime GetDeterministicDatetime(int minutes) {
+        private DateTime DeterministicDateTime(int minutes) {
             return new DateTime(1999, 12, 24, 23, minutes, 13);
         }
     }
