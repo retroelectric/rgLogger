@@ -22,22 +22,31 @@ namespace rgLogger {
         /// <summary>
         /// Stores the notification that have been sent.
         /// </summary>
-        private List<NotificationMessage> sentNotifications;
+        private List<NotificationMessage> _sentNotifications;
 
         /// <summary>
         /// Initializes a new instance of the Notifier class.
         /// </summary>
         /// <param name="logger">The EmailLogger object used to send the notifications.</param>
         /// <param name="daysToWait">Number of days to suppress a notification. Default is to not suppress them at all.</param>
-        public Notifier(EmailLogger logger, int daysToWait = -1) {
+        public Notifier(EmailLogger logger) {
             logWriter = logger;
-            GetSentNotifications(daysToWait);
         }
 
         /// <summary>
         /// Gets or sets the filename used for storing the notification data.
         /// </summary>
         public string NotificationStorageFile { get; set; } = "rgnotify.dat";
+        public int DaysToWait = -1;
+
+        private List<NotificationMessage> SentNotifications {
+            get {
+                if (_sentNotifications == null) {
+                    LoadSentNotifications();
+                }
+                return _sentNotifications;
+            }
+        }
 
         /// <summary>
         /// Adds a new notification.
@@ -66,12 +75,12 @@ namespace rgLogger {
                 return;
             }
 
-            var notificationHistory = sentNotifications.Where(n => n.Equals(notification)).SingleOrDefault();
+            var notificationHistory = SentNotifications.Where(n => n.Equals(notification)).SingleOrDefault();
 
             if (notificationHistory == null) {
                 notification.NotificationUsed = true;
                 notification.DateSent = DateTime.Now;
-                sentNotifications.Add(notification);
+                SentNotifications.Add(notification);
                 SendEmail(notification);
             }
             else {
@@ -93,36 +102,42 @@ namespace rgLogger {
         private void StoreSentNotifications() {
             using (var s = new System.IO.FileStream(NotificationStorageFile, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None)) {
                 var f = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                f.Serialize(s, sentNotifications.Where(n => n.NotificationUsed).ToList());
+                f.Serialize(s, SentNotifications.Where(n => n.NotificationUsed).ToList());
             }
         }
 
         /// <summary>
         /// Retrieves the notifications that were sent during the last run.
         /// </summary>
-        /// <param name="daysToWait">Number of days to suppress a notification.</param>
-        private void GetSentNotifications(int daysToWait) {
+        /// <param name="DaysToWait">Number of days to suppress a notification.</param>
+        public void LoadSentNotifications(bool failWhenCorrupted = false) {
             try {
                 using (var notificationFileStream = new System.IO.FileStream(NotificationStorageFile, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read)) {
                     var notificationBinaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
 
                     var storedNotifications = (List<NotificationMessage>)notificationBinaryFormatter.Deserialize(notificationFileStream);
 
-                    if (daysToWait >= 0) {
-                        sentNotifications = storedNotifications.Where(x => x.DateSent.AddDays(daysToWait) >= DateTime.Now).ToList();
+                    if (DaysToWait >= 0) {
+                        _sentNotifications = storedNotifications.Where(x => x.DateSent.AddDays(DaysToWait) >= DateTime.Now).ToList();
                     }
                     else {
-                        sentNotifications = storedNotifications;
+                        _sentNotifications = storedNotifications;
                     }
                 }
             }
             catch (System.IO.FileNotFoundException) {
                 // no notification file found so the list must be empty
-                sentNotifications = new List<NotificationMessage>();
+                _sentNotifications = new List<NotificationMessage>();
             }
-            catch (System.Runtime.Serialization.SerializationException) {
-                // deserialization failed. just use an empty list.
-                sentNotifications = new List<NotificationMessage>();
+            catch (System.Runtime.Serialization.SerializationException e) {
+                // deserialization failed. 
+                if (failWhenCorrupted) {
+                    throw e;
+                }
+                else {
+                    // just use an empty list.
+                    _sentNotifications = new List<NotificationMessage>();
+                }
             }
         }
 

@@ -22,7 +22,7 @@ using Microsoft.QualityTools.Testing.Fakes;
 namespace rgLogger.Tests {
     [TestClass]
     public class NotifierTest {
-        [TestMethod]
+        [TestMethod] 
         public void SendsAllEmailMessages() {
 
         }
@@ -30,6 +30,16 @@ namespace rgLogger.Tests {
 
         [TestMethod]
         public void SendsAllNotifications() {
+            string notificationName = "notice1";
+            string notificationSubject = "the quick brown fox jumped over the lazy dog";
+            string emailSender = "fakes@test.com;";
+            string notificationRecipient = "notice@test.com";
+            string dataFilename = "testing.dat";
+
+            if (System.IO.File.Exists(dataFilename)) {
+                System.IO.File.Delete(dataFilename);
+            }
+
             var notificationMails = new List<MailMessage>();
             using (ShimsContext.Create()) {
                 ShimDateTime.NowGet = () => {
@@ -58,18 +68,21 @@ namespace rgLogger.Tests {
                 }.OrderBy(m => m);
 
                 using (var emlog = new EmailLogger("test.com")) {
-                    emlog.Sender = new MailAddress("fakes@test.com");
+                    emlog.Sender = new MailAddress(emailSender);
                     emlog.Asynchronous = false;
                     using (var notlog = new Notifier(emlog)) {
+                        notlog.NotificationStorageFile = dataFilename;
                         // configure notifications
-                        notlog.AddNotification("notice1", "notice1@test.com");
+                        notlog.AddNotification(notificationName, notificationRecipient);
 
                         foreach(var message in messagesToSend) {
-                            notlog.SendNotification(new NotificationMessage("notice1", "notification 1", message));
+                            notlog.SendNotification(new NotificationMessage(notificationName, notificationSubject, message));
                         }
 
                         var expectedResult = from m in messagesToSend
-                                             select new MailMessage(emlog.Sender.Address, "notice@test.com", "notification 1", m);
+                                             select new MailMessage(emlog.Sender.Address, notificationRecipient, notificationSubject, m) {
+                                                 Sender = new MailAddress(emailSender)
+                                             };
 
                         CollectionAssert.AreEqual(notificationMails, expectedResult.ToList());
                     }
