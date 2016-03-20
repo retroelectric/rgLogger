@@ -31,6 +31,7 @@ namespace rgLogger {
         /// <param name="daysToWait">Number of days to suppress a notification. Default is to not suppress them at all.</param>
         public Notifier(EmailLogger logger) {
             logWriter = logger;
+            logger.Level = LogLevel.All;
         }
 
         /// <summary>
