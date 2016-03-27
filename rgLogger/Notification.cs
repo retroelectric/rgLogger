@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace rgLogger {
-    class Notification {
+    public class Notification {
         public string Name { get; set; }
 
         public HashSet<string> Recipients { get; } = new HashSet<string>();

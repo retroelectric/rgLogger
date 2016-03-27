@@ -3,11 +3,24 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.IO;
 using System.Net.Mail;
+using System.Xml.Serialization;
 
 namespace rgLogger {
-    class Notifier : IDisposable {
-        public string NotificationHistoryFile { get; set; } = "rgnotify.dat";
+    public class Notifier : IDisposable {
+        private string _dataFile = "rgnotify.dat";
+        public string NotificationHistoryFile {
+            get {
+                return _dataFile;
+            }
+            set {
+                if (value != _dataFile) {
+                    _dataFile = value;
+                    _history = null;
+                }
+            }
+        }
 
         public int DaysToWait { get; set; } = -1;
 
@@ -24,14 +37,35 @@ namespace rgLogger {
 
         private SmtpClient mailClient;
         private string _replyTo;
-        private List<Notification> notifications;
-        private List<NotificationMessage> notificationHistory;
+        private List<Notification> notifications = new List<Notification>();
+        private List<NotificationMessage> _history;
+        private List<NotificationMessage> notificationHistory {
+            get {
+                if (_history == null) {
+                    LoadNotificationHistory();
+                }
+
+                return _history;
+            }
+        }
 
         public Notifier(SmtpClient client) {
             mailClient = client;
         }
 
-        protected Notifier() {
+        public void AddNotification(string name, string subjectPrefix, string recipientEmail) {
+            var n = new Notification() {
+                Name = name,
+                EmailSubjectPrefix = subjectPrefix
+            };
+
+            n.Recipients.Add(recipientEmail);
+        }
+
+        public void AddNotification(Notification notification) {
+            if (notifications.Where(n => n.Name == notification.Name).FirstOrDefault() == null) {
+                notifications.Add(notification);
+            }
         }
 
         public void SendNotification(string notificationName, string message) {
@@ -44,7 +78,8 @@ namespace rgLogger {
                 var message = new NotificationMessage() {
                     NotificationDetails = notification,
                     Content = content,
-                    SubjectSuffix = subjectSuffix
+                    SubjectSuffix = subjectSuffix,
+                    NotificationUsed = true
                 };
 
                 if (NotificationMessageIsNew(message)) {
@@ -53,26 +88,54 @@ namespace rgLogger {
             }
         }
 
+        private void LoadNotificationHistory() {
+            try {
+                using (var fstream = new FileStream(NotificationHistoryFile, FileMode.Open, FileAccess.Read, FileShare.Read)) {
+                    var xserial = new XmlSerializer(typeof(NotificationMessage));
+
+                    _history = (List<NotificationMessage>)xserial.Deserialize(fstream);
+                }
+            }
+            catch(FileNotFoundException) {
+                _history = new List<NotificationMessage>();
+            }
+        }
+
+        private void SaveNotificationHistory() {
+            if (_history != null) {
+                using (var fstream = new FileStream(NotificationHistoryFile, FileMode.Create, FileAccess.Write, FileShare.None)) {
+                    var xserial = new XmlSerializer(typeof(NotificationMessage));
+                    xserial.Serialize(fstream, _history.Where(n => n.NotificationUsed).ToList());
+                }
+            }
+        }
+
         private bool NotificationMessageIsNew(NotificationMessage message) {
+            if (DaysToWait > 0) {
+                return true;
+            }
+
             if (notificationHistory == null) {
                 return true;
             }
 
-            var previousMessage = from n in notificationHistory
-                                  where n.NotificationDetails.Name == message.NotificationDetails.Name &&
-                                        n.SubjectSuffix == message.SubjectSuffix &&
-                                        n.Content == message.Content
-                                  select n;
+            var previousMessage = (from n in notificationHistory
+                                   where n.NotificationDetails.Name == message.NotificationDetails.Name &&
+                                         n.SubjectSuffix == message.SubjectSuffix &&
+                                         n.Content == message.Content
+                                   orderby n.DateSent
+                                   select n).FirstOrDefault();
 
-            if (previousMessage.Count() == 0) {
+            if (previousMessage == null) {
                 return true;
             }
 
-            var timeBetweenMessages = message.DateSent - previousMessage.Min(n => n.DateSent);
+            var timeBetweenMessages = message.DateSent - previousMessage.DateSent;
             if (timeBetweenMessages.TotalDays > DaysToWait) {
                 return true;
             }
             else {
+                previousMessage.NotificationUsed = true;
                 return false;
             }
         }
@@ -95,6 +158,7 @@ namespace rgLogger {
                 notificationEmail.To.Add(new MailAddress(recipient));
             }
 
+            notificationHistory.Add(message);
             mailClient.Send(notificationEmail);
         }
 
