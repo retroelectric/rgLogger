@@ -8,7 +8,7 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.QualityTools.Testing.Fakes;
 
 /* Things to check:
- * [DONE] 1. Sends correctly configured emails for all messages the first time they are written
+ * 1. Sends correctly configured emails for all messages the first time they are written
  * 2. Suppresses repeated notifications within the time out period
  * 3. Stops suppressing notifications after the time out period
  * 4. Correctly handles (DaysToWait = -1)
@@ -17,11 +17,71 @@ using Microsoft.QualityTools.Testing.Fakes;
  * 7. Email subject is set correctly
  * 8. Correctly handles multiple notification types
  * 9. Saves a correctly formatted data file with suppressed notifications
+ * 10. suppression is based on the type of notification. duplicate messages can be sent using multiple notifications configured identically but with different names.
+ * 11. altering the configuration of a notification will not cause messages to be resent. matches are checked on Notification Name, Subject Suffix, and Message content.
+ *      That means Recipients, Sender, Subject Prefix, ReplyTo can all be altered without causing notifications to be resent.
  */
 
 namespace rgLogger.Tests {
     [TestClass]
     public class NotifierTest {
+        [TestMethod]
+        public void SendsAllNotifications() {
+            string notificationName = "notification1";
+            string notificationSubjectPrefix = "notification one:";
+            string emailSender = "fakes@test.com";
+            string emailRecipient = "notice@test.com";
+            string dataFilename = "testing.dat";
+
+            if (System.IO.File.Exists(dataFilename)) {
+                System.IO.File.Delete(dataFilename);
+            }
+
+            var messagesToSend = new List<string>() {
+                "native son in my city talk that slang",
+                "virtual insight tranquilo hold on",
+                "some breaks afternoon soul late night jazz",
+                "just jammin' swucca chust muy tranquilo",
+                "chilaxin' by the sea guitar madness",
+                "muy tranquilo no way out afternoon soul",
+                "late night jazz victory some breaks",
+                "sitar chop pizzi chop the anthem",
+                "talk that slang hold on obviously",
+                "indigo child just jammin' faraway"
+            };
+
+            var expectedResults = new List<MailMessage>();
+            foreach(var m in messagesToSend) {
+                var r = new MailMessage() {
+                    Sender = new MailAddress(emailSender),
+                    From = new MailAddress(emailSender),
+                    Subject = $"{ notificationSubjectPrefix } { m.Substring(0, m.IndexOf(" ")) }",
+                    Body = m,
+                    IsBodyHtml = false
+                };
+
+                r.ReplyToList.Add(new MailAddress(emailSender));
+                r.To.Add(new MailAddress(emailRecipient));
+
+                expectedResults.Add(r);
+            }
+
+            var notificationMails = new List<MailMessage>();
+            using (ShimsContext.Create()) {
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                using (var n = new Notifier(new SmtpClient("mail.test.com"))) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                }
+            }
+        }
+
         [TestMethod]
         public void SendsAllEmailNotificationsOnTheInitialWrite() {
             string notificationName = "notice1";
@@ -82,14 +142,14 @@ namespace rgLogger.Tests {
                             expectedResult.Add(mailmsg);
                         }
 
-                            //.Select(m => new MailMessage(emailSender, notificationRecipient, notificationSubject, m) {
-                            //    Sender = new MailAddress(emailSender),
-                            //    ReplyTo = new MailAddress(emailSender)
-                            //})
-                            //.ToList();
+                        //.Select(m => new MailMessage(emailSender, notificationRecipient, notificationSubject, m) {
+                        //    Sender = new MailAddress(emailSender),
+                        //    ReplyTo = new MailAddress(emailSender)
+                        //})
+                        //.ToList();
 
                         for (int i = 0; i < expectedResult.Count(); i++) {
-                            System.Diagnostics.Debug.WriteLine($"mailobject{ i+1 }");
+                            System.Diagnostics.Debug.WriteLine($"mailobject{ i + 1 }");
                             System.Diagnostics.Debug.WriteLine($"nm from: { notificationMails[i].From.Address }");
                             System.Diagnostics.Debug.WriteLine($"er from: { expectedResult[i].From.Address }");
 
@@ -103,17 +163,12 @@ namespace rgLogger.Tests {
                             System.Diagnostics.Debug.WriteLine($"er body: { expectedResult[i].Body }");
                         }
 
-                        CollectionAssert.AreEquivalent(notificationMails, expectedResult, "The notifications sent to not match what was expected.");
+                        CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer());
+
+                        //CollectionAssert.AreEquivalent(notificationMails, expectedResult, "The notifications sent to not match what was expected.");
                     }
                 }
             }
-        }
-
-        [TestMethod]
-        public void TestMailMessageEquivalence() {
-            var m1 = MakeAsdfMailMessage();
-            var m2 = MakeAsdfMailMessage();
-            Assert.AreEqual(m1, m2);
         }
 
         private MailMessage MakeAsdfMailMessage() {
