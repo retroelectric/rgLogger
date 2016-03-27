@@ -3,153 +3,103 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net.Mail;
 
 namespace rgLogger {
-    /// <summary>
-    /// Uses an EmailLogger or CumulativeEmailLogger to send notifications which can be configured to suppress duplicate alerts for a given period of time.
-    /// </summary>
-    public class Notifier : IDisposable {
-        /// <summary>
-        /// Email logger used to send the notifications.
-        /// </summary>
-        private EmailLogger logWriter;
+    class Notifier : IDisposable {
+        public string NotificationHistoryFile { get; set; } = "rgnotify.dat";
 
-        /// <summary>
-        /// Stores the types of notifications that can be sent and their recipients.
-        /// </summary>
-        private Dictionary<string, List<string>> notifications = new Dictionary<string, List<string>>();
+        public int DaysToWait { get; set; } = -1;
 
-        /// <summary>
-        /// Stores the notification that have been sent.
-        /// </summary>
-        private List<NotificationMessage> _sentNotifications;
+        public string Sender { get; set; }
 
-        /// <summary>
-        /// Initializes a new instance of the Notifier class.
-        /// </summary>
-        /// <param name="logger">The EmailLogger object used to send the notifications.</param>
-        /// <param name="daysToWait">Number of days to suppress a notification. Default is to not suppress them at all.</param>
-        public Notifier(EmailLogger logger) {
-            logWriter = logger;
-            logger.Level = LogLevel.All;
-        }
-
-        /// <summary>
-        /// Gets or sets the filename used for storing the notification data.
-        /// </summary>
-        public string NotificationStorageFile { get; set; } = "rgnotify.dat";
-        public int DaysToWait = -1;
-
-        private List<NotificationMessage> SentNotifications {
+        public string ReplyTo {
             get {
-                if (_sentNotifications == null) {
-                    LoadSentNotifications();
+                return _replyTo ?? Sender;
+            }
+            set {
+                _replyTo = value;
+            }
+        }
+
+        private SmtpClient mailClient;
+        private string _replyTo;
+        private List<Notification> notifications;
+        private List<NotificationMessage> notificationHistory;
+
+        public Notifier(SmtpClient client) {
+            mailClient = client;
+        }
+
+        protected Notifier() {
+        }
+
+        public void SendNotification(string notificationName, string message) {
+            SendNotification(notificationName, message, string.Empty);
+        }
+
+        public void SendNotification(string notificationName, string content, string subjectSuffix) {
+            var notification = notifications.Where(n => n.Name == notificationName).FirstOrDefault();
+            if (notification != null) {
+                var message = new NotificationMessage() {
+                    NotificationDetails = notification,
+                    Content = content,
+                    SubjectSuffix = subjectSuffix
+                };
+
+                if (NotificationMessageIsNew(message)) {
+                    SendNotification(message);
                 }
-                return _sentNotifications;
             }
         }
 
-        /// <summary>
-        /// Adds a new notification.
-        /// </summary>
-        /// <param name="notificationName">Name of the notification type.</param>
-        /// <param name="recipients">Recipients' email addresses.</param>
-        public void AddNotification(string notificationName, List<string> recipients) {
-            notifications.Add(notificationName, recipients);
-        }
-
-        /// <summary>
-        /// Adds a new notification.
-        /// </summary>
-        /// <param name="notificationName">Name of the notification type.</param>
-        /// <param name="recipient">Recipient's email address.</param>
-        public void AddNotification(string notificationName, string recipient) {
-            AddNotification(notificationName, new List<string>() { recipient });
-        }
-
-        /// <summary>
-        /// Send a notification message
-        /// </summary>
-        /// <param name="notification">A NotificationMessage object that defines the message to be sent.</param>
-        public void SendNotification(NotificationMessage notification) {
-            if (!notifications.ContainsKey(notification.Name)) {
-                return;
-            }
-
-            var notificationHistory = SentNotifications.Where(n => n.Equals(notification)).SingleOrDefault();
-
+        private bool NotificationMessageIsNew(NotificationMessage message) {
             if (notificationHistory == null) {
-                notification.NotificationUsed = true;
-                notification.DateSent = DateTime.Now;
-                SentNotifications.Add(notification);
-                SendEmail(notification);
+                return true;
+            }
+
+            var previousMessage = from n in notificationHistory
+                                  where n.NotificationDetails.Name == message.NotificationDetails.Name &&
+                                        n.SubjectSuffix == message.SubjectSuffix &&
+                                        n.Content == message.Content
+                                  select n;
+
+            if (previousMessage.Count() == 0) {
+                return true;
+            }
+
+            var timeBetweenMessages = message.DateSent - previousMessage.Min(n => n.DateSent);
+            if (timeBetweenMessages.TotalDays > DaysToWait) {
+                return true;
             }
             else {
-                notificationHistory.NotificationUsed = true;
+                return false;
             }
         }
 
-        /// <summary>
-        /// Close the email notification object and serialize the sent notifications to disk.
-        /// </summary>
+        private void SendNotification(NotificationMessage message) {
+            // send the notification email
+            var senderMailAddress = new MailAddress(Sender);
+
+            var notificationEmail = new MailMessage() {
+                Sender = senderMailAddress,
+                From = senderMailAddress,
+                Subject = $"{ message.NotificationDetails.EmailSubjectPrefix } { message.SubjectSuffix }".Trim(),
+                Body = message.Content,
+                IsBodyHtml = message.NotificationDetails.BodyIsHtml,
+            };
+
+            notificationEmail.ReplyToList.Add(senderMailAddress);
+
+            foreach (var recipient in message.NotificationDetails.Recipients) {
+                notificationEmail.To.Add(new MailAddress(recipient));
+            }
+
+            mailClient.Send(notificationEmail);
+        }
+
         public void Dispose() {
-            StoreSentNotifications();
-            logWriter.Dispose();
-        }
-
-        /// <summary>
-        /// Stores the notifications that were sent during this run.
-        /// </summary>
-        private void StoreSentNotifications() {
-            using (var s = new System.IO.FileStream(NotificationStorageFile, System.IO.FileMode.Create, System.IO.FileAccess.Write, System.IO.FileShare.None)) {
-                var f = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-                f.Serialize(s, SentNotifications.Where(n => n.NotificationUsed).ToList());
-            }
-        }
-
-        /// <summary>
-        /// Retrieves the notifications that were sent during the last run.
-        /// </summary>
-        /// <param name="DaysToWait">Number of days to suppress a notification.</param>
-        public void LoadSentNotifications(bool failWhenCorrupted = false) {
-            try {
-                using (var notificationFileStream = new System.IO.FileStream(NotificationStorageFile, System.IO.FileMode.Open, System.IO.FileAccess.Read, System.IO.FileShare.Read)) {
-                    var notificationBinaryFormatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
-
-                    var storedNotifications = (List<NotificationMessage>)notificationBinaryFormatter.Deserialize(notificationFileStream);
-
-                    if (DaysToWait >= 0) {
-                        _sentNotifications = storedNotifications.Where(x => x.DateSent.AddDays(DaysToWait) >= DateTime.Now).ToList();
-                    }
-                    else {
-                        _sentNotifications = storedNotifications;
-                    }
-                }
-            }
-            catch (System.IO.FileNotFoundException) {
-                // no notification file found so the list must be empty
-                _sentNotifications = new List<NotificationMessage>();
-            }
-            catch (System.Runtime.Serialization.SerializationException e) {
-                // deserialization failed. 
-                if (failWhenCorrupted) {
-                    throw e;
-                }
-                else {
-                    // just use an empty list.
-                    _sentNotifications = new List<NotificationMessage>();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Send the notification email.
-        /// </summary>
-        /// <param name="notification">The notification message to send.</param>
-        private void SendEmail(NotificationMessage notification) {
-            logWriter.AddRecipient(notifications[notification.Name]);
-            logWriter.Subject = notification.Subject;
-            logWriter.Write(notification.Message, LogLevel.All);
+            mailClient.Dispose();
         }
     }
 }
