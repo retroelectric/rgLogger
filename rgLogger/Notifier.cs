@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.IO;
 using System.Net.Mail;
+using System.Xml;
 using System.Xml.Serialization;
 
 namespace rgLogger {
@@ -95,21 +96,21 @@ namespace rgLogger {
         private void LoadNotificationHistory() {
             try {
                 using (var fstream = new FileStream(NotificationHistoryFile, FileMode.Open, FileAccess.Read, FileShare.Read)) {
-                    var xserial = new XmlSerializer(typeof(NotificationMessage));
+                    var xserial = new XmlSerializer(typeof(List<NotificationMessage>));
 
                     _history = (List<NotificationMessage>)xserial.Deserialize(fstream);
                 }
             }
-            catch(FileNotFoundException) {
+            catch (FileNotFoundException) {
                 _history = new List<NotificationMessage>();
             }
         }
 
         private void SaveNotificationHistory() {
             if (_history != null) {
-                using (var fstream = new FileStream(NotificationHistoryFile, FileMode.Create, FileAccess.Write, FileShare.None)) {
-                    var xserial = new XmlSerializer(typeof(NotificationMessage));
-                    xserial.Serialize(fstream, _history.Where(n => n.NotificationUsed).ToList());
+                using (var xwriter = new XmlTextWriter(NotificationHistoryFile, Encoding.UTF8)) {
+                    var xserial = new XmlSerializer(typeof(List<NotificationMessage>));
+                    xserial.Serialize(xwriter, _history.Where(n => n.NotificationUsed).ToList());
                 }
             }
         }
@@ -119,7 +120,7 @@ namespace rgLogger {
                 return true;
             }
 
-            if (notificationHistory == null) {
+            if (notificationHistory.Count() == 0) {
                 return true;
             }
 
@@ -168,6 +169,7 @@ namespace rgLogger {
 
         public void Dispose() {
             mailClient.Dispose();
+            SaveNotificationHistory();
         }
     }
 }
