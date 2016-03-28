@@ -114,6 +114,11 @@ namespace rgLogger {
                     xserial.Serialize(xwriter, _history.Where(n => n.NotificationUsed).ToList());
                 }
             }
+            else {
+                if (File.Exists(NotificationHistoryFile)) {
+                    File.Delete(NotificationHistoryFile);
+                }
+            }
         }
 
         private bool NotificationMessageIsNew(NotificationMessage message) {

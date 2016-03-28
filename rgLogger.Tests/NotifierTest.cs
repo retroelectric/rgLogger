@@ -270,7 +270,6 @@ namespace rgLogger.Tests {
                 /* DAY THREE */
                 CurrentDay = 3;
                 notificationMails = new List<MailMessage>();
-
                 expectedResult = new List<MailMessage>();
 
                 using (var n = new Notifier("mail.test.com")) {
@@ -287,8 +286,8 @@ namespace rgLogger.Tests {
                 CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 3.");
 
                 /* DAY FOUR - resend initial message */
-                notificationMails = new List<MailMessage>();
                 CurrentDay = 4;
+                notificationMails = new List<MailMessage>();
                 expectedResult = new List<MailMessage>() {
                     StandardMailMessage(messagesToSend[0], "jane says")
                 };
@@ -304,6 +303,82 @@ namespace rgLogger.Tests {
                 }
 
                 CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 4.");
+            }
+        }
+
+        [TestMethod]
+        public void SendsNotificationAfterMessageIsNotRepeated() {
+            int notificationTimeout = 7;
+            DeleteDataFile();
+
+            using (ShimsContext.Create()) {
+                int CurrentDay = 0;
+                List<MailMessage> notificationMails = new List<MailMessage>();
+                List<MailMessage> expectedResult;
+
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                ShimDateTime.NowGet = () => {
+                    return new DateTime(2000, 1, CurrentDay, 11, 12, 13);
+                };
+
+                /* DAY ONE */
+                CurrentDay = 1;
+                notificationMails = new List<MailMessage>();
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "velvet revolver")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    n.SendNotification(notificationName, messagesToSend[0], "velvet revolver");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 1.");
+
+                /* DAY TWO */
+                CurrentDay = 2;
+                notificationMails = new List<MailMessage>();
+                expectedResult = new List<MailMessage>();
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 2.");
+
+                /* DAY THREE */
+                CurrentDay = 3;
+                notificationMails = new List<MailMessage>();
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "velvet revolver")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    n.SendNotification(notificationName, messagesToSend[0], "velvet revolver");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 3.");
             }
         }
 
