@@ -96,7 +96,7 @@ namespace rgLogger {
         private void LoadNotificationHistory() {
             try {
                 using (var fstream = new FileStream(NotificationHistoryFile, FileMode.Open, FileAccess.Read, FileShare.Read)) {
-                    var xserial = new XmlSerializer(typeof(List<NotificationMessage>));
+                    var xserial = new XmlSerializer(typeof(List<NotificationMessage>), new XmlRootAttribute("NotificationHistory"));
 
                     _history = (List<NotificationMessage>)xserial.Deserialize(fstream);
                 }
@@ -109,7 +109,8 @@ namespace rgLogger {
         private void SaveNotificationHistory() {
             if (_history != null) {
                 using (var xwriter = new XmlTextWriter(NotificationHistoryFile, Encoding.UTF8)) {
-                    var xserial = new XmlSerializer(typeof(List<NotificationMessage>));
+                    xwriter.Formatting = Formatting.Indented;
+                    var xserial = new XmlSerializer(typeof(List<NotificationMessage>), new XmlRootAttribute("NotificationHistory"));
                     xserial.Serialize(xwriter, _history.Where(n => n.NotificationUsed).ToList());
                 }
             }
