@@ -49,6 +49,8 @@ namespace rgLogger {
             }
         }
 
+        public Notifier(string mailServer) : this(new SmtpClient() { Host = mailServer }) { }
+
         public Notifier(SmtpClient client) {
             mailClient = client;
         }
@@ -60,6 +62,8 @@ namespace rgLogger {
             };
 
             n.Recipients.Add(recipientEmail);
+
+            notifications.Add(n);
         }
 
         public void AddNotification(Notification notification) {
