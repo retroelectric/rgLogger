@@ -118,7 +118,7 @@ namespace rgLogger.Tests {
                 };
 
                 ShimDateTime.NowGet = () => {
-                    return new DateTime(2000, 1, CurrentDay, 23, 59, 59);
+                    return new DateTime(2000, 1, CurrentDay, 11, 12, 13);
                 };
 
                 /* DAY ONE */
@@ -163,7 +163,7 @@ namespace rgLogger.Tests {
                 CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 2.");
 
                 /* DAY THREE */
-
+                CurrentDay = 3;
                 notificationMails = new List<MailMessage>();
 
                 expectedResult = new List<MailMessage>() {
@@ -203,7 +203,104 @@ namespace rgLogger.Tests {
                     n.SendNotification(notificationName, messagesToSend[1], "Day 2.");
                     n.SendNotification(notificationName, messagesToSend[2], "Day 3.");
                     // send a new notification that should be in the actual result.
-                    /* there are no new messages sent in this test */
+                    // *** there are no new messages sent in this test ***
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 4.");
+            }
+        }
+
+        [TestMethod]
+        public void ResendsNotificationsAfterTimeoutExpires() {
+            int notificationTimeout = 3;
+            DeleteDataFile();
+
+            using (ShimsContext.Create()) {
+                int CurrentDay = 0;
+                List<MailMessage> notificationMails = new List<MailMessage>();
+                List<MailMessage> expectedResult;
+
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                ShimDateTime.NowGet = () => {
+                    return new DateTime(2000, 1, CurrentDay, 11, 12, 13);
+                };
+
+                /* DAY ONE */
+                CurrentDay = 1;
+                notificationMails = new List<MailMessage>();
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "jane says")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    n.SendNotification(notificationName, messagesToSend[0], "jane says");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 1.");
+
+                /* DAY TWO */
+                CurrentDay = 2;
+                notificationMails = new List<MailMessage>();
+                expectedResult = new List<MailMessage>();
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    n.SendNotification(notificationName, messagesToSend[0], "jane says");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 2.");
+
+                /* DAY THREE */
+                CurrentDay = 3;
+                notificationMails = new List<MailMessage>();
+
+                expectedResult = new List<MailMessage>();
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    // resend the previous messages. they should not be in the actual result.
+                    n.SendNotification(notificationName, messagesToSend[0], "jane says");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 3.");
+
+                /* DAY FOUR - resend initial message */
+                notificationMails = new List<MailMessage>();
+                CurrentDay = 4;
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "jane says")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    n.SendNotification(notificationName, messagesToSend[0], "jane says");
                 }
 
                 CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 4.");
