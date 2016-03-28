@@ -137,7 +137,7 @@ namespace rgLogger {
             }
 
             var timeBetweenMessages = message.DateSent - previousMessage.DateSent;
-            if (timeBetweenMessages.TotalDays > DaysToWait) {
+            if (timeBetweenMessages.TotalDays >= DaysToWait) {
                 return true;
             }
             else {
