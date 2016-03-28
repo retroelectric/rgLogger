@@ -9,7 +9,7 @@ using Microsoft.QualityTools.Testing.Fakes;
 
 /* Things to check:
  * 1. [DONE] Sends correctly configured emails for all messages the first time they are written
- * 2. Suppresses repeated notifications within the time out period
+ * 2. [DONE] Suppresses repeated notifications within the time out period
  * 3. Stops suppressing notifications after the time out period
  * 4. Correctly handles (DaysToWait = -1)
  * 5. Sends messages to the correct notification recipients
@@ -25,19 +25,13 @@ using Microsoft.QualityTools.Testing.Fakes;
 namespace rgLogger.Tests {
     [TestClass]
     public class NotifierTest {
-        [TestMethod]
-        public void SendsAllNotificationsTheFirstTime() {
-            string notificationName = "notification1";
-            string notificationSubjectPrefix = "notification one:";
-            string emailSender = "fakes@test.com";
-            string emailRecipient = "notice@test.com";
-            string dataFilename = "testing.dat";
+        string notificationName = "notification1";
+        string notificationSubjectPrefix = "notification one:";
+        string emailSender = "fakes@test.com";
+        string emailRecipient = "notice@test.com";
+        string dataFilename = "testing.dat";
 
-            if (System.IO.File.Exists(dataFilename)) {
-                System.IO.File.Delete(dataFilename);
-            }
-
-            var messagesToSend = new List<string>() {
+        List<string> messagesToSend = new List<string>() {
                 "native son in my city talk that slang",
                 "virtual insight tranquilo hold on",
                 "some breaks afternoon soul late night jazz",
@@ -50,20 +44,34 @@ namespace rgLogger.Tests {
                 "indigo child just jammin' faraway"
             };
 
+        private void DeleteDataFile() {
+            if (System.IO.File.Exists(dataFilename)) {
+                System.IO.File.Delete(dataFilename);
+            }
+        }
+
+        private MailMessage StandardMailMessage(string content, string subjectSuffix) {
+            var r = new MailMessage() {
+                Sender = new MailAddress(emailSender),
+                From = new MailAddress(emailSender),
+                Subject = $"{ notificationSubjectPrefix } { subjectSuffix }",
+                Body = content,
+                IsBodyHtml = false
+            };
+
+            r.ReplyToList.Add(new MailAddress(emailSender));
+            r.To.Add(new MailAddress(emailRecipient));
+
+            return r;
+        }
+
+        [TestMethod]
+        public void SendsAllNotificationsTheFirstTime() {
+            DeleteDataFile();
+
             var expectedResults = new List<MailMessage>();
-            foreach(var m in messagesToSend) {
-                var r = new MailMessage() {
-                    Sender = new MailAddress(emailSender),
-                    From = new MailAddress(emailSender),
-                    Subject = $"{ notificationSubjectPrefix } { m.Substring(0, m.IndexOf(" ")) }",
-                    Body = m,
-                    IsBodyHtml = false
-                };
-
-                r.ReplyToList.Add(new MailAddress(emailSender));
-                r.To.Add(new MailAddress(emailRecipient));
-
-                expectedResults.Add(r);
+            foreach (var m in messagesToSend) {
+                expectedResults.Add(StandardMailMessage(m, m.Substring(0, m.IndexOf(" "))));
             }
 
             using (ShimsContext.Create()) {
@@ -83,7 +91,7 @@ namespace rgLogger.Tests {
 
                     n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
 
-                    foreach(var m in messagesToSend) {
+                    foreach (var m in messagesToSend) {
                         n.SendNotification(notificationName, m, m.Substring(0, m.IndexOf(" ")));
                     }
                 }
@@ -91,25 +99,16 @@ namespace rgLogger.Tests {
                 CollectionAssert.AreEqual(expectedResults, notificationMails, new Comparers.MailMessageComparer(), "Notification emails sent do not match the expected result.");
             }
         }
-        /*
+
         [TestMethod]
-        public void SendsAllEmailNotificationsOnTheInitialWrite() {
-            string notificationName = "notice1";
-            string notificationSubject = "the quick brown fox jumped over the lazy dog";
-            string emailSender = "fakes@test.com";
-            string notificationRecipient = "notice@test.com";
-            string dataFilename = "testing.dat";
+        public void CorrectlySuppressesMessages() {
+            int notificationTimeout = 7;
+            DeleteDataFile();
 
-            if (System.IO.File.Exists(dataFilename)) {
-                System.IO.File.Delete(dataFilename);
-            }
-
-            var notificationMails = new List<MailMessage>();
             using (ShimsContext.Create()) {
-                ShimDateTime.NowGet = () => {
-                    // make DateTime.Now deterministic based on the number of log messages that have been written.
-                    return DeterministicDateTime(1);
-                };
+                int CurrentDay = 0;
+                List<MailMessage> notificationMails = new List<MailMessage>();
+                List<MailMessage> expectedResult;
 
                 ShimSmtpClient.Constructor = @this => {
                     var shim = new ShimSmtpClient(@this);
@@ -118,153 +117,99 @@ namespace rgLogger.Tests {
                     };
                 };
 
-                var messagesToSend = new List<string>() {
-                    "native son in my city talk that slang",
-                    "virtual insight tranquilo hold on",
-                    "some breaks afternoon soul late night jazz",
-                    "just jammin' swucca chust muy tranquilo",
-                    "chilaxin' by the sea guitar madness",
-                    "muy tranquilo no way out afternoon soul",
-                    "late night jazz victory some breaks",
-                    "sitar chop pizzi chop the anthem",
-                    "talk that slang hold on obviously",
-                    "indigo child just jammin' faraway"
-                }.OrderBy(m => m).ToList();
+                ShimDateTime.NowGet = () => {
+                    return new DateTime(2000, 1, CurrentDay, 23, 59, 59);
+                };
 
-                using (var emlog = new EmailLogger("test.com")) {
-                    emlog.Sender = new MailAddress(emailSender);
-                    emlog.Asynchronous = false;
-                    using (var notlog = new Notifier(emlog)) {
-                        notlog.NotificationStorageFile = dataFilename;
-                        // configure notifications
-                        notlog.AddNotification(notificationName, notificationRecipient);
+                /* DAY ONE */
+                CurrentDay = 1;
+                notificationMails = new List<MailMessage>();
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "Day 1.")
+                };
 
-                        foreach (var message in messagesToSend) {
-                            notlog.SendNotification(new NotificationMessage(notificationName, notificationSubject, message));
-                        }
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
 
-                        var expectedResult = new List<MailMessage>();
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
 
-                        foreach (var message in messagesToSend) { //.Select(m => )) {
-                            var bodyText = $"{ DeterministicDateTime(1).ToString(emlog.TimestampFormat) }  { message }";
-                            var mailmsg = new MailMessage(emailSender, notificationRecipient, notificationSubject, bodyText);
-                            mailmsg.ReplyToList.Add(new MailAddress(emailSender));
-                            expectedResult.Add(mailmsg);
-                        }
-
-                        //.Select(m => new MailMessage(emailSender, notificationRecipient, notificationSubject, m) {
-                        //    Sender = new MailAddress(emailSender),
-                        //    ReplyTo = new MailAddress(emailSender)
-                        //})
-                        //.ToList();
-
-                        for (int i = 0; i < expectedResult.Count(); i++) {
-                            System.Diagnostics.Debug.WriteLine($"mailobject{ i + 1 }");
-                            System.Diagnostics.Debug.WriteLine($"nm from: { notificationMails[i].From.Address }");
-                            System.Diagnostics.Debug.WriteLine($"er from: { expectedResult[i].From.Address }");
-
-                            System.Diagnostics.Debug.WriteLine($"nm to: { notificationMails[i].To[0].Address }");
-                            System.Diagnostics.Debug.WriteLine($"er to: { expectedResult[i].To[0].Address }");
-
-                            System.Diagnostics.Debug.WriteLine($"nm subject: { notificationMails[i].Subject }");
-                            System.Diagnostics.Debug.WriteLine($"er subject: { expectedResult[i].Subject}");
-
-                            System.Diagnostics.Debug.WriteLine($"nm body: { notificationMails[i].Body }");
-                            System.Diagnostics.Debug.WriteLine($"er body: { expectedResult[i].Body }");
-                        }
-
-                        CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer());
-
-                        //CollectionAssert.AreEquivalent(notificationMails, expectedResult, "The notifications sent to not match what was expected.");
-                    }
+                    n.SendNotification(notificationName, messagesToSend[0], "Day 1.");
                 }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 1.");
+
+                /* DAY TWO */
+                CurrentDay = 2;
+                notificationMails = new List<MailMessage>();
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[1], "Day 2.")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    // resend the previous messages. they should not be in the actual result.
+                    n.SendNotification(notificationName, messagesToSend[0], "Day 1.");
+                    // send a new notification that should be in the actual result.
+                    n.SendNotification(notificationName, messagesToSend[1], "Day 2.");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 2.");
+
+                /* DAY THREE */
+
+                notificationMails = new List<MailMessage>();
+
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[2], "Day 3.")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    // resend the previous messages. they should not be in the actual result.
+                    n.SendNotification(notificationName, messagesToSend[0], "Day 1.");
+                    n.SendNotification(notificationName, messagesToSend[1], "Day 2.");
+                    // send a new notification that should be in the actual result.
+                    n.SendNotification(notificationName, messagesToSend[2], "Day 3.");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 3.");
+
+                /* DAY FOUR - no new messages */
+                notificationMails = new List<MailMessage>();
+                CurrentDay = 4;
+                expectedResult = new List<MailMessage>() { };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    // resend the previous messages. they should not be in the actual result.
+                    n.SendNotification(notificationName, messagesToSend[0], "Day 1.");
+                    n.SendNotification(notificationName, messagesToSend[1], "Day 2.");
+                    n.SendNotification(notificationName, messagesToSend[2], "Day 3.");
+                    // send a new notification that should be in the actual result.
+                    /* there are no new messages sent in this test */
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 4.");
             }
         }
-        */
 
-        /*
-    [TestMethod]
-    public void DoesNotSendNotificationsThatWereAlreadySent() {
-        string notificationName = "notice1";
-        string notificationSubject = "the quick brown fox jumped over the lazy dog";
-        string emailSender = "fakes@test.com";
-        string notificationRecipient = "notice@test.com";
-        string dataFilename = "testing.dat";
-        int dayOfNotification = 1;
-
-        if (System.IO.File.Exists(dataFilename)) {
-            System.IO.File.Delete(dataFilename);
-        }
-
-        var notificationMails = new List<MailMessage>();
-        using (ShimsContext.Create()) {
-            ShimDateTime.NowGet = () => {
-                // make DateTime.Now deterministic based on the number of log messages that have been written.
-                return DeterministicDateTime(dayOfNotification);
-            };
-
-            ShimSmtpClient.Constructor = @this => {
-                var shim = new ShimSmtpClient(@this);
-                shim.SendMailMessage = e => {
-                    notificationMails.Add(e);
-                };
-            };
-
-            var messagesToSend = new List<string>() {
-                "native son in my city talk that slang",
-                "virtual insight tranquilo hold on",
-                "some breaks afternoon soul late night jazz",
-                "just jammin' swucca chust muy tranquilo",
-                "chilaxin' by the sea guitar madness",
-                "muy tranquilo no way out afternoon soul",
-                "late night jazz victory some breaks",
-                "sitar chop pizzi chop the anthem",
-                "talk that slang hold on obviously",
-                "indigo child just jammin' faraway"
-            }.OrderBy(m => m);
-
-            using (var emlog = new EmailLogger("test.com")) {
-                emlog.Sender = new MailAddress(emailSender);
-                emlog.Asynchronous = false;
-                using (var notlog = new Notifier(emlog)) {
-                    notlog.DaysToWait = 7;
-                    notlog.NotificationStorageFile = dataFilename;
-                    // configure notifications
-                    notlog.AddNotification(notificationName, notificationRecipient);
-
-                    // send the notifications the first time.
-                    foreach (var message in messagesToSend) {
-                        notlog.SendNotification(new NotificationMessage(notificationName, notificationSubject, message));
-                    }
-
-                    var expectedResult = from m in messagesToSend
-                                         select new MailMessage(emlog.Sender.Address, notificationRecipient, notificationSubject, m) {
-                                             Sender = new MailAddress(emailSender),
-                                             ReplyTo = new MailAddress(emailSender)
-                                         };
-                                         */
-
-
-        /* this is the test SendsAllEmailNotificationsOnTheInitialWrite()
-         * if that fails this test should fail. either the notifications aren't being sent correctly
-         * or something has changed and this test needs to be updated */
-        /*CollectionAssert.AreEqual(notificationMails, expectedResult.ToList(), "The notifications sent to not match what was expected.");
-
-        // switch the day and reset the notification and expected result collections
-        // to prepare a  clean slate for the next round of notifications being sent
-        dayOfNotification = 2;
-        notificationMails = new List<MailMessage>();
-        expectedResult = new List<MailMessage>();
-
-        // send the notifications again
-        foreach (var message in messagesToSend) {
-            notlog.SendNotification(new NotificationMessage(notificationName, notificationSubject, message));
-        }
-    }
-}
-}
-}
-*/
         private DateTime DeterministicDateTime(int days) {
             return new DateTime(1999, 12, days, 0, 0, 0);
         }
