@@ -111,7 +111,7 @@ namespace rgLogger {
         }
 
         private bool NotificationMessageIsNew(NotificationMessage message) {
-            if (DaysToWait < 0) {
+            if (DaysToWait <= 0) {
                 return true;
             }
 
