@@ -60,7 +60,7 @@ namespace rgLogger {
             AddNotification(name, subjectPrefix, new List<string> { recipientEmail });
         }
 
-        public void AddNotification(string name, string subjectPrefix, List<string> recipientEmails) {
+        public void AddNotification(string name, string subjectPrefix, IEnumerable<string> recipientEmails) {
             var n = new Notification() {
                 Name = name,
                 EmailSubjectPrefix = subjectPrefix
