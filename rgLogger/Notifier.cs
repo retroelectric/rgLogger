@@ -69,6 +69,8 @@ namespace rgLogger {
             foreach(var r in recipientEmails) {
                 n.Recipients.Add(r);
             }
+
+            notifications.Add(n);
         }
 
         public void AddNotification(Notification notification) {
