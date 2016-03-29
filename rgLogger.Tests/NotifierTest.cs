@@ -8,18 +8,19 @@ using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Microsoft.QualityTools.Testing.Fakes;
 
 /* Things to check:
- * 1. [DONE] Sends correctly configured emails for all messages the first time they are written
- * 2. [DONE] Suppresses repeated notifications within the time out period
- * 3. Stops suppressing notifications after the time out period
- * 4. Correctly handles (DaysToWait = -1)
- * 5. Sends messages to the correct notification recipients
- * 6. What does it do when sending to a notification type that doesn't exist?
- * 7. Email subject is set correctly
- * 8. Correctly handles multiple notification types
- * 9. Saves a correctly formatted data file with suppressed notifications
+ * 01. [DONE] Sends correctly configured emails for all messages the first time they are written
+ * 02. [DONE] Suppresses repeated notifications within the time out period
+ * 03. [DONE] Stops suppressing notifications after the time out period
+ * 04. Correctly handles (DaysToWait = -1)
+ * 05. Sends messages to the correct notification recipients
+ * 06. What does it do when sending to a notification type that doesn't exist?
+ * 07. Email subject is set correctly
+ * 08. Correctly handles multiple notification types
+ * 09. Saves a correctly formatted data file with suppressed notifications
  * 10. suppression is based on the type of notification. duplicate messages can be sent using multiple notifications configured identically but with different names.
  * 11. altering the configuration of a notification will not cause messages to be resent. matches are checked on Notification Name, Subject Suffix, and Message content.
  *      That means Recipients, Sender, Subject Prefix, ReplyTo can all be altered without causing notifications to be resent.
+ * 12. [DONE] Sends messages again once they aren't repeated for a run.
  */
 
 namespace rgLogger.Tests {

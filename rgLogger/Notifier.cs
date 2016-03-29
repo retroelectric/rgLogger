@@ -57,14 +57,18 @@ namespace rgLogger {
         }
 
         public void AddNotification(string name, string subjectPrefix, string recipientEmail) {
+            AddNotification(name, subjectPrefix, new List<string> { recipientEmail });
+        }
+
+        public void AddNotification(string name, string subjectPrefix, List<string> recipientEmails) {
             var n = new Notification() {
                 Name = name,
                 EmailSubjectPrefix = subjectPrefix
             };
 
-            n.Recipients.Add(recipientEmail);
-
-            notifications.Add(n);
+            foreach(var r in recipientEmails) {
+                n.Recipients.Add(r);
+            }
         }
 
         public void AddNotification(Notification notification) {
