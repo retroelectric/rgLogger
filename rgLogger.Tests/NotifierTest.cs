@@ -11,7 +11,7 @@ using Microsoft.QualityTools.Testing.Fakes;
  * 01. [DONE] Sends correctly configured emails for all messages the first time they are written
  * 02. [DONE] Suppresses repeated notifications within the time out period
  * 03. [DONE] Stops suppressing notifications after the time out period
- * 04. Correctly handles (DaysToWait = -1)
+ * 04. [DONE] DaysToWait == 0 means messages will never be suppressed.
  * 05. Sends messages to the correct notification recipients
  * 06. What does it do when sending to a notification type that doesn't exist?
  * 07. Email subject is set correctly
@@ -351,6 +351,84 @@ namespace rgLogger.Tests {
                 CurrentDay = 2;
                 notificationMails = new List<MailMessage>();
                 expectedResult = new List<MailMessage>();
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 2.");
+
+                /* DAY THREE */
+                CurrentDay = 3;
+                notificationMails = new List<MailMessage>();
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "velvet revolver")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    n.SendNotification(notificationName, messagesToSend[0], "velvet revolver");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 3.");
+            }
+        }
+
+        [TestMethod]
+        private void MessagesAreNeverSuppressedWhenDaysToWaitIsZero() {
+            int notificationTimeout = 0;
+            DeleteDataFile();
+
+            using (ShimsContext.Create()) {
+                int CurrentDay = 0;
+                List<MailMessage> notificationMails = new List<MailMessage>();
+                List<MailMessage> expectedResult;
+
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                ShimDateTime.NowGet = () => {
+                    return new DateTime(2000, 1, CurrentDay, 11, 12, 13);
+                };
+
+                /* DAY ONE */
+                CurrentDay = 1;
+                notificationMails = new List<MailMessage>();
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "velvet revolver")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = notificationTimeout;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    n.SendNotification(notificationName, messagesToSend[0], "velvet revolver");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 1.");
+
+                /* DAY TWO */
+                CurrentDay = 2;
+                notificationMails = new List<MailMessage>();
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "velvet revolver")
+                };
 
                 using (var n = new Notifier("mail.test.com")) {
                     n.Sender = emailSender;
