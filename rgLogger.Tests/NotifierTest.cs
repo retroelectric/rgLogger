@@ -12,9 +12,9 @@ using Microsoft.QualityTools.Testing.Fakes;
  * 02. [DONE] Suppresses repeated notifications within the time out period
  * 03. [DONE] Stops suppressing notifications after the time out period
  * 04. [DONE] DaysToWait == 0 means messages will never be suppressed.
- * 05. Sends messages to the correct notification recipients
- * 06. What does it do when sending to a notification type that doesn't exist?
- * 07. Email subject is set correctly
+ * 05. [DONE - 1] Sends messages to the correct notification recipients
+ * 06. [DONE - 1] What does it do when sending to a notification type that doesn't exist?
+ * 07. [DONE - 1] Email subject is set correctly
  * 08. Correctly handles multiple notification types
  * 09. Saves a correctly formatted data file with suppressed notifications
  * 10. suppression is based on the type of notification. duplicate messages can be sent using multiple notifications configured identically but with different names.
@@ -44,12 +44,6 @@ namespace rgLogger.Tests {
                 "talk that slang hold on obviously",
                 "indigo child just jammin' faraway"
             };
-
-        private void DeleteDataFile() {
-            if (System.IO.File.Exists(dataFilename)) {
-                System.IO.File.Delete(dataFilename);
-            }
-        }
 
         private MailMessage StandardMailMessage(string content, string subjectSuffix) {
             var r = new MailMessage() {
@@ -384,7 +378,7 @@ namespace rgLogger.Tests {
         }
 
         [TestMethod]
-        private void MessagesAreNeverSuppressedWhenDaysToWaitIsZero() {
+        public void MessagesAreNeverSuppressedWhenDaysToWaitIsZero() {
             int notificationTimeout = 0;
             DeleteDataFile();
 
@@ -408,7 +402,10 @@ namespace rgLogger.Tests {
                 CurrentDay = 1;
                 notificationMails = new List<MailMessage>();
                 expectedResult = new List<MailMessage>() {
-                    StandardMailMessage(messagesToSend[0], "velvet revolver")
+                    StandardMailMessage(messagesToSend[0], "fridge lazer"),
+                    StandardMailMessage(messagesToSend[1], "pew pew pew"),
+                    StandardMailMessage(messagesToSend[2], "rome antium cumae"),
+                    StandardMailMessage(messagesToSend[3], "black mirror")
                 };
 
                 using (var n = new Notifier("mail.test.com")) {
@@ -418,7 +415,10 @@ namespace rgLogger.Tests {
 
                     n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
 
-                    n.SendNotification(notificationName, messagesToSend[0], "velvet revolver");
+                    n.SendNotification(notificationName, messagesToSend[0], "fridge lazer");
+                    n.SendNotification(notificationName, messagesToSend[1], "pew pew pew");
+                    n.SendNotification(notificationName, messagesToSend[2], "rome antium cumae");
+                    n.SendNotification(notificationName, messagesToSend[3], "black mirror");
                 }
 
                 CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 1.");
@@ -427,7 +427,14 @@ namespace rgLogger.Tests {
                 CurrentDay = 2;
                 notificationMails = new List<MailMessage>();
                 expectedResult = new List<MailMessage>() {
-                    StandardMailMessage(messagesToSend[0], "velvet revolver")
+                    StandardMailMessage(messagesToSend[0], "fridge lazer"),
+                    StandardMailMessage(messagesToSend[1], "pew pew pew"),
+                    StandardMailMessage(messagesToSend[2], "rome antium cumae"),
+                    StandardMailMessage(messagesToSend[3], "black mirror"),
+                    StandardMailMessage(messagesToSend[4], "cool ridge"),
+                    StandardMailMessage(messagesToSend[5], "cables to go"),
+                    StandardMailMessage(messagesToSend[6], "elsa anna olaf"),
+                    StandardMailMessage(messagesToSend[7], "product guide")
                 };
 
                 using (var n = new Notifier("mail.test.com")) {
@@ -436,6 +443,15 @@ namespace rgLogger.Tests {
                     n.DaysToWait = notificationTimeout;
 
                     n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    n.SendNotification(notificationName, messagesToSend[0], "fridge lazer");
+                    n.SendNotification(notificationName, messagesToSend[1], "pew pew pew");
+                    n.SendNotification(notificationName, messagesToSend[2], "rome antium cumae");
+                    n.SendNotification(notificationName, messagesToSend[3], "black mirror");
+                    n.SendNotification(notificationName, messagesToSend[4], "cool ridge");
+                    n.SendNotification(notificationName, messagesToSend[5], "cables to go");
+                    n.SendNotification(notificationName, messagesToSend[6], "elsa anna olaf");
+                    n.SendNotification(notificationName, messagesToSend[7], "product guide");
                 }
 
                 CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 2.");
@@ -444,7 +460,10 @@ namespace rgLogger.Tests {
                 CurrentDay = 3;
                 notificationMails = new List<MailMessage>();
                 expectedResult = new List<MailMessage>() {
-                    StandardMailMessage(messagesToSend[0], "velvet revolver")
+                    StandardMailMessage(messagesToSend[4], "cool ridge"),
+                    StandardMailMessage(messagesToSend[5], "cables to go"),
+                    StandardMailMessage(messagesToSend[6], "elsa anna olaf"),
+                    StandardMailMessage(messagesToSend[7], "product guide")
                 };
 
                 using (var n = new Notifier("mail.test.com")) {
@@ -454,13 +473,25 @@ namespace rgLogger.Tests {
 
                     n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
 
-                    n.SendNotification(notificationName, messagesToSend[0], "velvet revolver");
+                    n.SendNotification(notificationName, messagesToSend[4], "cool ridge");
+                    n.SendNotification(notificationName, messagesToSend[5], "cables to go");
+                    n.SendNotification(notificationName, messagesToSend[6], "elsa anna olaf");
+                    n.SendNotification(notificationName, messagesToSend[7], "product guide");
                 }
 
                 CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result for Day 3.");
             }
         }
 
+        public void CorrectlyHandlesMultipleNotificationTypes() {
+
+        }
+
+        private void DeleteDataFile() {
+            if (System.IO.File.Exists(dataFilename)) {
+                System.IO.File.Delete(dataFilename);
+            }
+        }
         private DateTime DeterministicDateTime(int days) {
             return new DateTime(1999, 12, days, 0, 0, 0);
         }
