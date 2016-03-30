@@ -12,13 +12,13 @@ using Microsoft.QualityTools.Testing.Fakes;
  * 02. [DONE] Suppresses repeated notifications within the time out period
  * 03. [DONE] Stops suppressing notifications after the time out period
  * 04. [DONE] DaysToWait == 0 means messages will never be suppressed.
- * 05. [DONE - 1] Sends messages to the correct notification recipients
- * 06. [DONE - 1] What does it do when sending to a notification type that doesn't exist?
- * 07. [DONE - 1] Email subject is set correctly
- * 08. Correctly handles multiple notification types
+ * 05. [DONE - 01] Sends messages to the correct notification recipients
+ * 06. [DONE - 01] What does it do when sending to a notification type that doesn't exist?
+ * 07. [DONE - 01] Email subject is set correctly
+ * 08. [DONE] Correctly handles multiple notification types
  * 09. Saves a correctly formatted data file with suppressed notifications
- * 10. suppression is based on the type of notification. duplicate messages can be sent using multiple notifications configured identically but with different names.
- * 11. altering the configuration of a notification will not cause messages to be resent. matches are checked on Notification Name, Subject Suffix, and Message content.
+ * 10. Suppression is based on the type of notification. duplicate messages can be sent using multiple notifications configured identically but with different names.
+ * 11. Altering the configuration of a notification will not cause messages to be resent. matches are checked on Notification Name, Subject Suffix, and Message content.
  *      That means Recipients, Sender, Subject Prefix, ReplyTo can all be altered without causing notifications to be resent.
  * 12. [DONE] Sends messages again once they aren't repeated for a run.
  */
@@ -44,21 +44,6 @@ namespace rgLogger.Tests {
                 "talk that slang hold on obviously",
                 "indigo child just jammin' faraway"
             };
-
-        private MailMessage StandardMailMessage(string content, string subjectSuffix) {
-            var r = new MailMessage() {
-                Sender = new MailAddress(emailSender),
-                From = new MailAddress(emailSender),
-                Subject = $"{ notificationSubjectPrefix } { subjectSuffix }",
-                Body = content,
-                IsBodyHtml = false
-            };
-
-            r.ReplyToList.Add(new MailAddress(emailSender));
-            r.To.Add(new MailAddress(emailRecipient));
-
-            return r;
-        }
 
         [TestMethod]
         public void SendsAllNotificationsTheFirstTime() {
@@ -460,6 +445,7 @@ namespace rgLogger.Tests {
                 CurrentDay = 3;
                 notificationMails = new List<MailMessage>();
                 expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "fridge lazer"),
                     StandardMailMessage(messagesToSend[4], "cool ridge"),
                     StandardMailMessage(messagesToSend[5], "cables to go"),
                     StandardMailMessage(messagesToSend[6], "elsa anna olaf"),
@@ -473,6 +459,7 @@ namespace rgLogger.Tests {
 
                     n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
 
+                    n.SendNotification(notificationName, messagesToSend[0], "fridge lazer");
                     n.SendNotification(notificationName, messagesToSend[4], "cool ridge");
                     n.SendNotification(notificationName, messagesToSend[5], "cables to go");
                     n.SendNotification(notificationName, messagesToSend[6], "elsa anna olaf");
@@ -483,8 +470,71 @@ namespace rgLogger.Tests {
             }
         }
 
+        [TestMethod]
         public void CorrectlyHandlesMultipleNotificationTypes() {
+            DeleteDataFile();
 
+            using (ShimsContext.Create()) {
+                int currentMinute = 0;
+                List<MailMessage> notificationMails = new List<MailMessage>();
+                List<MailMessage> expectedResult;
+
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                ShimDateTime.NowGet = () => {
+                    return new DateTime(2000, 1, 1, 12, currentMinute++, 13);
+                };
+
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "n1m1", "notice1@test.com", "notification type 1"),
+                    StandardMailMessage(messagesToSend[1], "n2m1", "notice2@test.com", "notification type 2"),
+                    StandardMailMessage(messagesToSend[2], "n3m1", "notice3@test.com", "notification type 3"),
+                    StandardMailMessage(messagesToSend[3], "n1m2", "notice1@test.com", "notification type 1"),
+                    StandardMailMessage(messagesToSend[4], "n2m2", "notice2@test.com", "notification type 2")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = 7;
+
+                    n.AddNotification("notification1", "notification type 1", "notice1@test.com");
+                    n.AddNotification("notification2", "notification type 2", "notice2@test.com");
+                    n.AddNotification("notification3", "notification type 3", "notice3@test.com");
+
+                    n.SendNotification("notification1", messagesToSend[0], "n1m1");
+                    n.SendNotification("notification2", messagesToSend[1], "n2m1");
+                    n.SendNotification("notification3", messagesToSend[2], "n3m1");
+                    n.SendNotification("notification1", messagesToSend[3], "n1m2");
+                    n.SendNotification("notification2", messagesToSend[4], "n2m2");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result.");
+            }
+        }
+
+        private MailMessage StandardMailMessage(string content, string subjectSuffix, string recipient, string subjectPrefix) {
+            var r = new MailMessage() {
+                Sender = new MailAddress(emailSender),
+                From = new MailAddress(emailSender),
+                Subject = $"{ subjectPrefix } { subjectSuffix }",
+                Body = content,
+                IsBodyHtml = false
+            };
+
+            r.ReplyToList.Add(new MailAddress(emailSender));
+            r.To.Add(new MailAddress(recipient));
+
+            return r;
+        }
+
+        private MailMessage StandardMailMessage(string content, string subjectSuffix) {
+            return StandardMailMessage(content, subjectSuffix, emailRecipient, notificationSubjectPrefix);
         }
 
         private void DeleteDataFile() {
