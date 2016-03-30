@@ -16,11 +16,10 @@ using Microsoft.QualityTools.Testing.Fakes;
  * 06. [DONE - 01] What does it do when sending to a notification type that doesn't exist?
  * 07. [DONE - 01] Email subject is set correctly
  * 08. [DONE] Correctly handles multiple notification types
- * 09. Saves a correctly formatted data file with suppressed notifications
- * 10. Suppression is based on the type of notification. duplicate messages can be sent using multiple notifications configured identically but with different names.
- * 11. Altering the configuration of a notification will not cause messages to be resent. matches are checked on Notification Name, Subject Suffix, and Message content.
+ * 09. [DONE] Suppression is based on the type of notification. duplicate messages can be sent using multiple notifications configured identically but with different names.
+ * 10. Altering the configuration of a notification will not cause messages to be resent. matches are checked on Notification Name, Subject Suffix, and Message content.
  *      That means Recipients, Sender, Subject Prefix, ReplyTo can all be altered without causing notifications to be resent.
- * 12. [DONE] Sends messages again once they aren't repeated for a run.
+ * 11. [DONE] Sends messages again once they aren't repeated for a run.
  */
 
 namespace rgLogger.Tests {
@@ -512,6 +511,86 @@ namespace rgLogger.Tests {
                     n.SendNotification("notification3", messagesToSend[2], "n3m1");
                     n.SendNotification("notification1", messagesToSend[3], "n1m2");
                     n.SendNotification("notification2", messagesToSend[4], "n2m2");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result.");
+            }
+        }
+
+        [TestMethod]
+        public void DoesNotSendDuplicateNotificationsDuringTheSameRun() {
+            DeleteDataFile();
+
+            using (ShimsContext.Create()) {
+                int currentMinute = 0;
+                List<MailMessage> notificationMails = new List<MailMessage>();
+                List<MailMessage> expectedResult;
+
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                ShimDateTime.NowGet = () => {
+                    return new DateTime(2000, 1, 1, 12, currentMinute++, 13);
+                };
+
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "dupe")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = 7;
+
+                    n.AddNotification("notification1", notificationSubjectPrefix, emailRecipient);
+
+                    n.SendNotification("notification1", messagesToSend[0], "dupe");
+                    n.SendNotification("notification1", messagesToSend[0], "dupe");
+                }
+
+                CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result.");
+            }
+        }
+
+        [TestMethod]
+        public void CanSendDuplicateNotificationsUsingMoreThanOneNotificationType() {
+            DeleteDataFile();
+
+            using (ShimsContext.Create()) {
+                int currentMinute = 0;
+                List<MailMessage> notificationMails = new List<MailMessage>();
+                List<MailMessage> expectedResult;
+
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                ShimDateTime.NowGet = () => {
+                    return new DateTime(2000, 1, 1, 12, currentMinute++, 13);
+                };
+
+                expectedResult = new List<MailMessage>() {
+                    StandardMailMessage(messagesToSend[0], "dupe"),
+                    StandardMailMessage(messagesToSend[0], "dupe")
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = 7;
+
+                    n.AddNotification("notification1", notificationSubjectPrefix, emailRecipient);
+                    n.AddNotification("notification2", notificationSubjectPrefix, emailRecipient);
+
+                    n.SendNotification("notification1", messagesToSend[0], "dupe");
+                    n.SendNotification("notification2", messagesToSend[0], "dupe");
                 }
 
                 CollectionAssert.AreEqual(expectedResult, notificationMails, new Comparers.MailMessageComparer(), "Notifications sent do not match the expected result.");
