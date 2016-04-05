@@ -518,6 +518,72 @@ namespace rgLogger.Tests {
             }
         }
 
+        [TestMethod]
+        public void CorrectlyHandlesNotificationsWithMultipleRecipients() {
+            DeleteDataFile();
+
+            var expectedResults = new List<MailMessage>();
+            foreach (var m in messagesToSend) {
+                expectedResults.Add(StandardMailMessage(m, m.Substring(0, m.IndexOf(" "))));
+            }
+
+            using (ShimsContext.Create()) {
+                var notificationMails = new List<MailMessage>();
+
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = 7;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, new string[] { emailRecipient });
+
+                    foreach (var m in messagesToSend) {
+                        n.SendNotification(notificationName, m, m.Substring(0, m.IndexOf(" ")));
+                    }
+                }
+
+                CollectionAssert.AreEqual(expectedResults, notificationMails, new Comparers.MailMessageComparer(), "Notification emails sent do not match the expected result.");
+            }
+        }
+        
+        [TestMethod]
+        public void NotificationsAreSentWithCorrectlyConfiguredSubjects() {
+            DeleteDataFile();
+
+            var notificationMails = new List<MailMessage>();
+
+            using (ShimsContext.Create()) {
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                var expectedResult = messagesToSend.OrderBy(m => m).Select(m => $"this is a prefix { m }").ToList();
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+
+                    n.AddNotification(notificationName, "this is a prefix", emailRecipient);
+
+                    foreach (var m in messagesToSend.OrderBy(m => m)) {
+                        n.SendNotification(notificationName, m, m);
+                    }
+
+                    CollectionAssert.AreEqual(expectedResult, notificationMails.Select(m => m.Subject).ToList());
+                }
+            }
+        }
+
         private MailMessage StandardMailMessage(string content, string subjectSuffix, string recipient, string subjectPrefix) {
             var r = new MailMessage() {
                 Sender = new MailAddress(emailSender),
