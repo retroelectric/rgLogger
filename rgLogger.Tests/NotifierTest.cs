@@ -554,7 +554,7 @@ namespace rgLogger.Tests {
         }
         
         [TestMethod]
-        public void NotificationsAreSentWithCorrectlyConfiguredSubjects() {
+        public void EmailSubjectsAreCorrectlyConfigured() {
             DeleteDataFile();
 
             var notificationMails = new List<MailMessage>();
@@ -574,6 +574,37 @@ namespace rgLogger.Tests {
                     n.NotificationHistoryFile = dataFilename;
 
                     n.AddNotification(notificationName, "this is a prefix", emailRecipient);
+
+                    foreach (var m in messagesToSend.OrderBy(m => m)) {
+                        n.SendNotification(notificationName, m, m);
+                    }
+
+                    CollectionAssert.AreEqual(expectedResult, notificationMails.Select(m => m.Subject).ToList());
+                }
+            }
+        }
+
+        [TestMethod]
+        public void EmailSubjectsAreCorrectlyConfiguredEvenWithNoPrefix() {
+            DeleteDataFile();
+
+            var notificationMails = new List<MailMessage>();
+
+            using (ShimsContext.Create()) {
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                var expectedResult = messagesToSend.OrderBy(m => m).ToList();
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+
+                    n.AddNotification(notificationName, string.Empty, emailRecipient);
 
                     foreach (var m in messagesToSend.OrderBy(m => m)) {
                         n.SendNotification(notificationName, m, m);
