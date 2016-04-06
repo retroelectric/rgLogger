@@ -31,7 +31,7 @@ namespace rgLogger {
         /// </summary>
         /// <param name="server">The hostname or IP address of the SMTP server.</param>
         /// <param name="defaultLevel">Default logging level to use.</param>
-        public CumulativeEmailLogger(string server, LogLevel defaultLevel) : base(server, defaultLevel) { }
+        public CumulativeEmailLogger(string server, LogLevel messageLevel) : base(server, messageLevel) { }
 
         /// <summary>
         /// Initializes a new instance of the CumulativeEmailLogger class.
@@ -39,7 +39,7 @@ namespace rgLogger {
         /// <param name="server">The hostname or IP address of the SMTP server.</param>
         /// <param name="port">The port to connect to on the server.</param>
         /// <param name="defaultLevel">Default logging level to use.</param>
-        public CumulativeEmailLogger(string server, int port, LogLevel defaultLevel) : base(server, port, defaultLevel) { }
+        public CumulativeEmailLogger(string server, int port, LogLevel messageLevel) : base(server, port, messageLevel) { }
 
         /// <summary>
         /// Gets or sets a value indicating whether the email should be sent when the object is disposed if it contains any content. (Default = true)
