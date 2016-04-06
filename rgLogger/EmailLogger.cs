@@ -22,7 +22,7 @@ namespace rgLogger {
         /// <summary>
         /// Backing field for the ReplyTo property.
         /// </summary>
-        private MailAddress _replyTo;
+        private string _replyTo;
 
         /// <summary>
         /// Initializes a new instance of the EmailLogger class using the provided SmtpClient.
@@ -88,17 +88,18 @@ namespace rgLogger {
         /// <summary>
         /// Gets or sets the email address to send emails from.
         /// </summary>
-        public MailAddress Sender { get; set; }
+        public string Sender { get; set; }
 
         /// <summary>
         /// Gets or sets a collection of email addresses to be the recipients of the email.
         /// </summary>
-        public MailAddressCollection Recipient { get; set; } = new MailAddressCollection();
+        //public MailAddressCollection Recipient { get; set; } = new MailAddressCollection();
+        public List<string> Recipients { get; set; } = new List<string>();
 
         /// <summary>
         /// Gets or sets the email address to set as the reply to address.
         /// </summary>
-        public MailAddress ReplyTo {
+        public string ReplyTo {
             get {
                 return _replyTo ?? Sender;
             }
@@ -122,25 +123,9 @@ namespace rgLogger {
         /// Adds another recipient to the log messages.
         /// </summary>
         /// <param name="newRecipient">A MailAddress object for the new recipient.</param>
-        public void AddRecipient(MailAddress newRecipient) {
-            Recipient.Add(newRecipient);
-        }
-
-        /// <summary>
-        /// Adds another recipient to the log messages.
-        /// </summary>
-        /// <param name="newRecipient">Email address of the recipient.</param>
         public void AddRecipient(string newRecipient) {
-            AddRecipient(new MailAddress(newRecipient));
-        }
-
-        /// <summary>
-        /// Adds multiple recipients to the log messages.
-        /// </summary>
-        /// <param name="newRecipients">A collection of MailAddress objects for the new recipients.</param>
-        public void AddRecipient(IEnumerable<MailAddress> newRecipients) {
-            foreach (var m in newRecipients) {
-                AddRecipient(m);
+            if (!Recipients.Contains(newRecipient)) {
+                Recipients.Add(newRecipient);
             }
         }
 
@@ -149,8 +134,8 @@ namespace rgLogger {
         /// </summary>
         /// <param name="newRecipients">A collection of email addresses for the new recipients.</param>
         public void AddRecipient(IEnumerable<string> newRecipients) {
-            foreach (var m in newRecipients) {
-                AddRecipient(new MailAddress(m));
+            foreach(var r in newRecipients) {
+                AddRecipient(r);
             }
         }
 
@@ -167,14 +152,14 @@ namespace rgLogger {
         /// <param name="message">Message for the email body.</param>
         internal override void WriteToLog(string message) {
             var m = new MailMessage() {
-                From = Sender,
+                From = new MailAddress(Sender),
                 Subject = Subject,
                 Body = message,
             };
 
             m.ReplyToList.Add(ReplyTo);
 
-            foreach (MailAddress r in Recipient) {
+            foreach (var r in Recipients) {
                 m.To.Add(r);
             }
 

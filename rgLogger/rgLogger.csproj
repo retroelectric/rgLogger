@@ -47,7 +47,7 @@
     <Compile Include="CompoundLogger.cs" />
     <Compile Include="ConsoleLoggerOutput.cs" />
     <Compile Include="CumulativeEmailLogger.cs" />
-    <None Include="ClassDiagram1.cd" />
+    <None Include="ClassDiagram2.cd" />
     <None Include="DbLogger.cs" />
     <Compile Include="EmailLogger.cs" />
     <Compile Include="FileLogger.cs" />
