@@ -79,8 +79,8 @@ namespace rgLogger {
             }
         }
 
-        public void SendNotification(string notificationName, string message) {
-            SendNotification(notificationName, message, string.Empty);
+        public void SendNotification(string notificationName, string content) {
+            SendNotification(notificationName, content, string.Empty);
         }
 
         public void SendNotification(string notificationName, string content, string subjectSuffix) {

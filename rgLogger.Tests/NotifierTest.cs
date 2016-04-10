@@ -598,7 +598,7 @@ namespace rgLogger.Tests {
         }
 
         [TestMethod]
-        public void ChangingTheNotificationConfigurationDoesNotResendDuplicateMessages() {
+        public void CorrectlyHandlesNotificationsWithMultipleRecipients() {
             DeleteDataFile();
 
             var expectedResults = new List<MailMessage>();
@@ -608,7 +608,7 @@ namespace rgLogger.Tests {
 
             using (ShimsContext.Create()) {
                 var notificationMails = new List<MailMessage>();
-                int CurrentDay = 1;
+
                 ShimSmtpClient.Constructor = @this => {
                     var shim = new ShimSmtpClient(@this);
                     shim.SendMailMessage = e => {
@@ -616,16 +616,12 @@ namespace rgLogger.Tests {
                     };
                 };
 
-                ShimDateTime.NowGet = () => {
-                    return new DateTime(2000, 1, CurrentDay, 11, 12, 13);
-                };
-
                 using (var n = new Notifier("mail.test.com")) {
                     n.Sender = emailSender;
                     n.NotificationHistoryFile = dataFilename;
                     n.DaysToWait = 7;
 
-                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+                    n.AddNotification(notificationName, notificationSubjectPrefix, new string[] { emailRecipient });
 
                     foreach (var m in messagesToSend) {
                         n.SendNotification(notificationName, m, m.Substring(0, m.IndexOf(" ")));
@@ -633,22 +629,68 @@ namespace rgLogger.Tests {
                 }
 
                 CollectionAssert.AreEqual(expectedResults, notificationMails, new Comparers.MailMessageComparer(), "Notification emails sent do not match the expected result.");
+            }
+        }
+        
+        [TestMethod]
+        public void EmailSubjectsAreCorrectlyConfigured() {
+            DeleteDataFile();
 
-                CurrentDay = 2;
+            var notificationMails = new List<MailMessage>();
+
+            using (ShimsContext.Create()) {
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                var expectedResult = messagesToSend.OrderBy(m => m).Select(m => $"this is a prefix { m }").ToList();
+
                 using (var n = new Notifier("mail.test.com")) {
-                    n.Sender = "newer@test.com";
+                    n.Sender = emailSender;
                     n.NotificationHistoryFile = dataFilename;
-                    n.DaysToWait = 7;
 
-                    n.AddNotification(notificationName, "new prefix", "new@test.com");
+                    n.AddNotification(notificationName, "this is a prefix", emailRecipient);
 
-                    foreach (var m in messagesToSend) {
-                        n.SendNotification(notificationName, m, m.Substring(0, m.IndexOf(" ")));
+                    foreach (var m in messagesToSend.OrderBy(m => m)) {
+                        n.SendNotification(notificationName, m, m);
                     }
-                }
 
-                expectedResults = new List<MailMessage>();
-                CollectionAssert.AreEqual(expectedResults, notificationMails, new Comparers.MailMessageComparer(), "Notification emails sent do not match the expected result.");
+                    CollectionAssert.AreEqual(expectedResult, notificationMails.Select(m => m.Subject).ToList());
+                }
+            }
+        }
+
+        [TestMethod]
+        public void EmailSubjectsAreCorrectlyConfiguredEvenWithNoPrefix() {
+            DeleteDataFile();
+
+            var notificationMails = new List<MailMessage>();
+
+            using (ShimsContext.Create()) {
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                var expectedResult = messagesToSend.OrderBy(m => m).ToList();
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+
+                    n.AddNotification(notificationName, string.Empty, emailRecipient);
+
+                    foreach (var m in messagesToSend.OrderBy(m => m)) {
+                        n.SendNotification(notificationName, m, m);
+                    }
+
+                    CollectionAssert.AreEqual(expectedResult, notificationMails.Select(m => m.Subject).ToList());
+                }
             }
         }
 
