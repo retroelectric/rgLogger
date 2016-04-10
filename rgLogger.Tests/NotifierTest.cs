@@ -597,6 +597,61 @@ namespace rgLogger.Tests {
             }
         }
 
+        [TestMethod]
+        public void ChangingTheNotificationConfigurationDoesNotResendDuplicateMessages() {
+            DeleteDataFile();
+
+            var expectedResults = new List<MailMessage>();
+            foreach (var m in messagesToSend) {
+                expectedResults.Add(StandardMailMessage(m, m.Substring(0, m.IndexOf(" "))));
+            }
+
+            using (ShimsContext.Create()) {
+                var notificationMails = new List<MailMessage>();
+                int CurrentDay = 1;
+                ShimSmtpClient.Constructor = @this => {
+                    var shim = new ShimSmtpClient(@this);
+                    shim.SendMailMessage = e => {
+                        notificationMails.Add(e);
+                    };
+                };
+
+                ShimDateTime.NowGet = () => {
+                    return new DateTime(2000, 1, CurrentDay, 11, 12, 13);
+                };
+
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = emailSender;
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = 7;
+
+                    n.AddNotification(notificationName, notificationSubjectPrefix, emailRecipient);
+
+                    foreach (var m in messagesToSend) {
+                        n.SendNotification(notificationName, m, m.Substring(0, m.IndexOf(" ")));
+                    }
+                }
+
+                CollectionAssert.AreEqual(expectedResults, notificationMails, new Comparers.MailMessageComparer(), "Notification emails sent do not match the expected result.");
+
+                CurrentDay = 2;
+                using (var n = new Notifier("mail.test.com")) {
+                    n.Sender = "newer@test.com";
+                    n.NotificationHistoryFile = dataFilename;
+                    n.DaysToWait = 7;
+
+                    n.AddNotification(notificationName, "new prefix", "new@test.com");
+
+                    foreach (var m in messagesToSend) {
+                        n.SendNotification(notificationName, m, m.Substring(0, m.IndexOf(" ")));
+                    }
+                }
+
+                expectedResults = new List<MailMessage>();
+                CollectionAssert.AreEqual(expectedResults, notificationMails, new Comparers.MailMessageComparer(), "Notification emails sent do not match the expected result.");
+            }
+        }
+
         private MailMessage StandardMailMessage(string content, string subjectSuffix, string recipient, string subjectPrefix) {
             var r = new MailMessage() {
                 Sender = new MailAddress(emailSender),
