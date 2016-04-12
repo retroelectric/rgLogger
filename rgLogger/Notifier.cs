@@ -9,7 +9,7 @@ using System.Xml;
 using System.Xml.Serialization;
 
 namespace rgLogger {
-    public class Notifier : IDisposable {
+    public class Notifier : IDisposable, INotifier {
         private string _dataFile = "rgnotify.dat";
         public string NotificationHistoryFile {
             get {

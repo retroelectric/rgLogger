@@ -51,6 +51,8 @@
     <None Include="DbLogger.cs" />
     <Compile Include="EmailLogger.cs" />
     <Compile Include="FileLogger.cs" />
+    <Compile Include="IBaseLogger.cs" />
+    <Compile Include="INotifier.cs" />
     <Compile Include="LogLevel.cs" />
     <Compile Include="Notification.cs" />
     <Compile Include="NotificationMessage.cs" />
