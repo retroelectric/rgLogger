@@ -7,7 +7,7 @@ namespace rgLogger {
     /// A base class for all logging objects to implement that provides consistent
     /// message formatting and filtering.
     /// </summary>
-    public abstract class BaseLogger {
+    public abstract class BaseLogger : IDisposable {
         /// <summary>
         /// Gets or sets the log level to send messages at.
         /// </summary>
@@ -120,5 +120,7 @@ namespace rgLogger {
 
             return false;
         }
+
+        public virtual void Dispose() { }
     }
 }
