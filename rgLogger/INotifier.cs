@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Net.Mail;
 
 namespace rgLogger {
     public interface INotifier {
@@ -6,6 +7,7 @@ namespace rgLogger {
         string NotificationHistoryFile { get; set; }
         string ReplyTo { get; set; }
         string Sender { get; set; }
+        SmtpClient EmailSmtpClient { get; set; }
 
         void AddNotification(Notification notification);
         void AddNotification(string name, string subjectPrefix, string recipientEmail);

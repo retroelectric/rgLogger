@@ -36,7 +36,8 @@ namespace rgLogger {
             }
         }
 
-        private SmtpClient mailClient;
+        public SmtpClient EmailSmtpClient { get; set; }
+
         private string _replyTo;
         private List<Notification> notifications = new List<Notification>();
         private List<NotificationMessage> _history;
@@ -50,10 +51,12 @@ namespace rgLogger {
             }
         }
 
+        public Notifier() { }
+
         public Notifier(string mailServer) : this(new SmtpClient() { Host = mailServer }) { }
 
         public Notifier(SmtpClient client) {
-            mailClient = client;
+            EmailSmtpClient = client;
         }
 
         public void AddNotification(string name, string subjectPrefix, string recipientEmail) {
@@ -176,11 +179,11 @@ namespace rgLogger {
             }
 
             notificationHistory.Add(message);
-            mailClient.Send(notificationEmail);
+            EmailSmtpClient.Send(notificationEmail);
         }
 
         public void Dispose() {
-            mailClient.Dispose();
+            EmailSmtpClient.Dispose();
             SaveNotificationHistory();
         }
     }
